@@ -5,9 +5,7 @@ import TitleBar from "./components/TitleBar.vue";
 import StreamView from "./components/StreamView.vue";
 import ChatPanel from "./components/ChatPanel.vue";
 
-const WIN_W = 454;
-const WIN_H = 283;
-
+const showChat = ref(true);
 const winSize = ref({ w: 0, h: 0 });
 const streamRef = ref<InstanceType<typeof StreamView> | null>(null);
 
@@ -22,21 +20,21 @@ onMounted(() => {
   new ResizeObserver(() => {
     winSize.value = { w: window.innerWidth, h: window.innerHeight };
   }).observe(document.body);
-  winSize.value = { w: WIN_W, h: WIN_H };
 });
 </script>
 
 <template>
   <div id="root">
-    <TitleBar :height="30" title="配信中" />
+    <TitleBar :height="30" title="配信中" @toggle-chat="showChat = !showChat" />
     <div id="body">
       <div id="stream-col">
         <img id="bg" src="/assets/windows/operation_base.png" alt="" />
         <StreamView ref="streamRef" />
       </div>
-      <ChatPanel @send="onChatSend" />
+      <div id="chat-slot" :class="{ closed: !showChat }">
+        <ChatPanel v-if="showChat" @send="onChatSend" />
+      </div>
     </div>
-    <div id="debug">{{ winSize.w }} × {{ winSize.h }}</div>
   </div>
 </template>
 
@@ -48,6 +46,7 @@ html, body, #app { width: 100%; height: 100%; overflow: hidden; font-family: "zp
 #root { width: 100%; height: 100%; display: flex; flex-direction: column; overflow: hidden; background: #fce4ec; }
 #body { flex: 1; display: flex; overflow: hidden; }
 #stream-col { flex: 1; position: relative; display: flex; overflow: hidden; }
+#chat-slot { width: 220px; flex-shrink: 0; background: #fce4ec; transition: width 0.3s ease; overflow: hidden; }
+#chat-slot.closed { width: 0; }
 #bg { position: absolute; width: 100%; height: 100%; object-fit: fill; pointer-events: none; z-index: 0; }
-#debug { position: absolute; bottom: 4px; left: 8px; background: rgba(0,0,0,0.7); color: #0f0; padding: 2px 8px; font-size: 11px; border-radius: 4px; z-index: 999; pointer-events: none; }
 </style>

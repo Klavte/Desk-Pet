@@ -15,7 +15,6 @@ async function send() {
   const t = input.value.trim();
   if (!t) return;
   input.value = "";
-  // 通知 App.vue 触发动画
   emit("send", t);
   await sendMessage(t);
   scroll();
@@ -37,7 +36,7 @@ onMounted(scroll);
       </div>
     </div>
     <div id="ch-foot">
-      <input v-model="input" placeholder="チャット..." @keydown="key" />
+      <input v-model="input" placeholder="メッセージ..." @keydown="key" />
       <button @click="send" :disabled="!input.trim()">送信</button>
     </div>
   </div>
@@ -45,10 +44,9 @@ onMounted(scroll);
 
 <style scoped>
 #chat {
-  width: 220px;
+  width: 100%; height: 100%;
   display: flex;
   flex-direction: column;
-  flex-shrink: 0;
   position: relative;
   overflow: hidden;
   background: #1a0a20;

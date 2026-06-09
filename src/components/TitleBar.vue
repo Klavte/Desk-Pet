@@ -3,12 +3,9 @@ import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { invoke } from "@tauri-apps/api/core";
 
 defineProps<{ height: number; title: string }>();
+defineEmits<{ "toggle-chat": [] }>();
 
 const win = getCurrentWebviewWindow();
-
-function minimize() { win.minimize(); }
-function reset() { invoke("reset_size"); }
-function closeWin() { win.close(); }
 </script>
 
 <template>
@@ -18,13 +15,16 @@ function closeWin() { win.close(); }
       <span class="title" data-tauri-drag-region>{{ title }}</span>
     </div>
     <div class="right">
-      <button class="btn" @click="minimize" title="min">
+      <button class="btn" @click="$emit('toggle-chat')" title="chat">
+        <img src="/assets/windows/icon_status_follower.png" alt="" />
+      </button>
+      <button class="btn" @click="win.minimize()" title="min">
         <img src="/assets/windows/button_minimize.png" alt="" />
       </button>
-      <button class="btn" @click="reset" title="reset">
+      <button class="btn" @click="invoke('reset_size')" title="reset">
         <img src="/assets/windows/button_maximize.png" alt="" />
       </button>
-      <button class="btn close" @click="closeWin" title="close">
+      <button class="btn close" @click="win.close()" title="close">
         <img src="/assets/windows/button_close.png" alt="" />
       </button>
     </div>

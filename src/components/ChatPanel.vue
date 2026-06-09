@@ -2,6 +2,7 @@
 import { ref, nextTick, onMounted } from "vue";
 import { chatHistory, sendMessage } from "../services/chat";
 
+const emit = defineEmits<{ send: [text: string] }>();
 const input = ref("");
 const el = ref<HTMLElement | null>(null);
 
@@ -14,6 +15,8 @@ async function send() {
   const t = input.value.trim();
   if (!t) return;
   input.value = "";
+  // 通知 App.vue 触发动画
+  emit("send", t);
   await sendMessage(t);
   scroll();
 }

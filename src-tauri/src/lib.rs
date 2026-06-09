@@ -6,7 +6,6 @@ use tauri::Manager;
 pub fn run() {
     tauri::Builder::default()
         .setup(|app| {
-            // 窗口透明，鼠标可穿透（后续通过前端切换）
             let _window = app.get_webview_window("main").unwrap();
             Ok(())
         })

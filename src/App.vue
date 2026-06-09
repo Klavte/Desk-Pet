@@ -1,5 +1,5 @@
-<script setup>
-import { onMounted } from "vue";
+<script setup lang="ts">
+import { ref, onMounted } from "vue";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { listen } from "@tauri-apps/api/event";
 import TitleBar from "./components/TitleBar.vue";
@@ -9,6 +9,16 @@ import ChatPanel from "./components/ChatPanel.vue";
 const WIN_W = 960;
 const WIN_H = 600;
 const RATIO = WIN_W / WIN_H;
+
+const streamRef = ref<InstanceType<typeof StreamView> | null>(null);
+
+function onChatSend(text: string) {
+  const t = text.toLowerCase();
+  if (t.includes("smile")) streamRef.value?.setExpression("smile");
+  if (t.includes("su") || t.includes("素")) streamRef.value?.setExpression("su");
+  if (t.includes("sleep") || t.includes("困")) streamRef.value?.setExpression("sleepy");
+  if (t.includes("superchat")) streamRef.value?.setExpression("superchat");
+}
 
 onMounted(async () => {
   const win = getCurrentWebviewWindow();
@@ -27,13 +37,13 @@ onMounted(async () => {
 
 <template>
   <div id="root">
-    <TitleBar :height="30" title="配信中"size=20 />
+    <TitleBar :height="30" title="配信中" />
     <div id="body">
       <div id="stream-col">
         <img id="bg" src="/assets/windows/operation_base.png" alt="" />
-        <StreamView />
+        <StreamView ref="streamRef" />
       </div>
-      <ChatPanel />
+      <ChatPanel @send="onChatSend" />
     </div>
   </div>
 </template>

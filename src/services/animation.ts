@@ -54,6 +54,15 @@ export const animations: Record<string, Animation> = {
     ],
     loop: false,
   },
+  gaoo: {
+    frames: [
+      { src: "/assets/ctj/stream_cho_gaoo_000.png", duration: 150 },
+      { src: "/assets/ctj/stream_cho_gaoo_001.png", duration: 150 },
+      { src: "/assets/ctj/stream_cho_gaoo_000.png", duration: 150 },
+      { src: "/assets/ctj/stream_cho_gaoo_001.png", duration: 300 },
+    ],
+    loop: false,
+  },
   sleepy: {
     frames: [
       { src: "/assets/ctj/stream_cho_sleepy_000.png", duration: 3000 },

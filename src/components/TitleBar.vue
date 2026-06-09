@@ -13,10 +13,12 @@ const win = getCurrentWebviewWindow();
     <div class="left" data-tauri-drag-region>
       <img class="win-icon" src="/assets/windows/icon_desktop_yapoo.png" alt="" data-tauri-drag-region />
       <span class="title" data-tauri-drag-region>{{ title }}</span>
+      <span class="dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></span>
     </div>
     <div class="right">
-      <button class="btn" @click="$emit('toggle-chat')" title="chat">
-        <img src="/assets/windows/icon_status_follower.png" alt="" />
+      <button class="btn-chat" @click="$emit('toggle-chat')" title="chat">
+        <img class="ic-default" src="/assets/windows/icon_status_follower.png" alt="" />
+        <img class="ic-hover" src="/assets/windows/icon_status_love.png" alt="" />
       </button>
       <button class="btn" @click="win.minimize()" title="min">
         <img src="/assets/windows/button_minimize.png" alt="" />
@@ -43,7 +45,39 @@ const win = getCurrentWebviewWindow();
 .left { display: flex; align-items: center; gap: 6px; padding-left: 8px; height: 100%; }
 .win-icon { height: 22px; image-rendering: pixelated; }
 .title { color: #fff; font-size: 14px; font-weight: bold; margin-left: 6px; text-shadow: 1px 1px 1px rgba(0,0,0,0.3); }
+.dots { display: inline-flex; gap: 3px; align-items: center; margin-top: 12px; }
+.dots span {
+  display: inline-block;
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: #fff;
+  animation: bounce 2s infinite;
+}
+.dots .d1 { animation-delay: 0s; }
+.dots .d2 { animation-delay: 0.3s; }
+.dots .d3 { animation-delay: 0.6s; }
+@keyframes bounce {
+  0%, 80%, 100% { opacity: 0; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-2px); }
+}
 .right { display: flex; align-items: center; gap: 2px; height: 100%; padding-right: 2px; }
+.btn-chat {
+  width: 28px; height: 28px;
+  border: none; background: none;
+  cursor: pointer; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+}
+.btn-chat img {
+  position: absolute;
+  height: 20px; width: auto;
+  image-rendering: pixelated;
+  object-fit: contain;
+}
+.btn-chat .ic-default { display: block; }
+.btn-chat .ic-hover { display: none; }
+.btn-chat:hover .ic-default { display: none; }
+.btn-chat:hover .ic-hover { display: block; }
 .btn {
   width: 24px; height: 22px;
   border: 1px solid rgba(255,180,200,0.4);

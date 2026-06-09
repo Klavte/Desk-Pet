@@ -49,7 +49,7 @@ onMounted(scroll);
   flex-direction: column;
   position: relative;
   overflow: hidden;
-  background: #1a0a20;
+  background: #3e1a2e;
 }
 .cbg {
   position: absolute;
@@ -57,16 +57,17 @@ onMounted(scroll);
   object-fit: cover;
   pointer-events: none;
   z-index: 0;
-  opacity: 0.1;
+  opacity: 0.15;
 }
 #ch-head {
+  font-family: "pixel-mplus-bold", "zpix", "pixel-mplus", sans-serif;
   position: relative;
   z-index: 1;
   padding: 6px 8px;
-  font-size: 10px;
+  font-size: 11px;
   color: #f0a0c0;
-  background: #2a1035;
-  border-bottom: 1px solid #3a1a4a;
+  background: #4a2540;
+  border-bottom: 1px solid #5a3050;
   flex-shrink: 0;
   text-align: center;
   letter-spacing: 2px;
@@ -87,8 +88,8 @@ onMounted(scroll);
 .cn { font-size: 9px; color: #f0a0c0; }
 .cm.user .cn { color: #90d0ff; }
 .ct { color: #f0e0f0; word-break: break-word; padding: 4px 8px; border-radius: 12px; max-width: 95%; font-size: 10px; }
-.cm.user .ct { background: #3a1a5a; }
-.cm.assistant .ct { background: #2a1035; }
+.cm.user .ct { background: #6a3050; }
+.cm.assistant .ct { background: #4a2540; }
 #ch-foot {
   position: relative;
   z-index: 1;
@@ -96,14 +97,14 @@ onMounted(scroll);
   align-items: center;
   gap: 4px;
   padding: 6px;
-  background: #2a1035;
-  border-top: 1px solid #3a1a4a;
+  background: #4a2540;
+  border-top: 1px solid #5a3050;
   flex-shrink: 0;
 }
 #ch-foot input {
   flex: 1;
-  background: #1a0a20;
-  border: 1px solid #4a2a5a;
+  background: #3e1a2e;
+  border: 1px solid #6a4060;
   border-radius: 16px;
   padding: 5px 10px;
   color: #f0e0f0;
@@ -112,7 +113,7 @@ onMounted(scroll);
   outline: none;
 }
 #ch-foot input:focus { border-color: #c4276f; }
-#ch-foot input::placeholder { color: #6a4a7a; }
+#ch-foot input::placeholder { color: #8a6080; }
 #ch-foot button {
   padding: 5px 12px;
   background: #c4276f;
@@ -125,7 +126,7 @@ onMounted(scroll);
   flex-shrink: 0;
 }
 #ch-foot button:hover { background: #e84a8a; }
-#ch-foot button:disabled { background: #3a2050; color: #7a5a8a; cursor: default; }
+#ch-foot button:disabled { background: #5a3050; color: #8a6080; cursor: default; }
 #ch-msgs::-webkit-scrollbar { width: 4px; }
-#ch-msgs::-webkit-scrollbar-thumb { background: #4a2a5a; border-radius: 2px; }
+#ch-msgs::-webkit-scrollbar-thumb { background: #6a4060; border-radius: 2px; }
 </style>

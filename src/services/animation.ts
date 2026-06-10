@@ -48,9 +48,27 @@ export const animations: Record<string, Animation> = {
     ],
     loop: false,
   },
-  su: {
+  you: {
     frames: [
-      { src: "/assets/ctj/stream_cho_su_000.png", duration: 3000 },
+      { src: "/assets/ctj/stream_cho_dokuzetsu_superchat_000.png", duration: 150 },
+      { src: "/assets/ctj/stream_cho_dokuzetsu_superchat_001.png", duration: 150 },         
+      { src: "/assets/ctj/stream_cho_dokuzetsu_superchat_002.png", duration: 150 },
+      { src: "/assets/ctj/stream_cho_dokuzetsu_superchat_003.png", duration: 150 },
+      { src: "/assets/ctj/stream_cho_dokuzetsu_superchat_004.png", duration: 150 },         
+      { src: "/assets/ctj/stream_cho_dokuzetsu_superchat_005.png", duration: 150 },
+      { src: "/assets/ctj/stream_cho_dokuzetsu_superchat_004.png", duration: 150 },         
+      { src: "/assets/ctj/stream_cho_dokuzetsu_superchat_003.png", duration: 150 },
+      { src: "/assets/ctj/stream_cho_dokuzetsu_superchat_002.png", duration: 150 },
+      { src: "/assets/ctj/stream_cho_dokuzetsu_superchat_001.png", duration: 150 },         
+      { src: "/assets/ctj/stream_cho_dokuzetsu_superchat_000.png", duration: 600 },
+    ],
+    loop: false,
+  },
+  business: {
+    frames: [
+      { src: "/assets/ctj/stream_cho_anken_business1_000.png", duration: 3000 },
+      { src: "/assets/ctj/stream_cho_anken_business1_001.png", duration: 250 },
+      { src: "/assets/ctj/stream_cho_anken_business1_000.png", duration: 3000 },
     ],
     loop: false,
   },

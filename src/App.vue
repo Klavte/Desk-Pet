@@ -1,12 +1,19 @@
-﻿<script setup lang="ts">
+<script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { invoke } from "@tauri-apps/api/core";
 import TitleBar from "./components/TitleBar.vue";
 import StreamView from "./components/StreamView.vue";
 import ChatPanel from "./components/ChatPanel.vue";
+import WinSim from "./components/winsim/WinSim.vue";
 import { chatHistory } from "./services/chat";
 import { checkWindow } from "./services/window-monitor";
 import { listen } from "@tauri-apps/api/event";
+
+const isWinSim = (() => {
+  try { return getCurrentWebviewWindow().label === "windows-sim"; }
+  catch { return false; }
+})();
 
 const showChat = ref(true);
 const winSize = ref({ w: 0, h: 0 });
@@ -15,16 +22,19 @@ const streamRef = ref<InstanceType<typeof StreamView> | null>(null);
 function onChatSend(text: string) {
   const t = text.toLowerCase();
   if (t.includes("smile")) streamRef.value?.setExpression("smile");
-  if (t.includes("su") || t.includes("素")) streamRef.value?.setExpression("su");
   if (t.includes("sleep") || t.includes("困")) streamRef.value?.setExpression("sleepy");
-if (t.includes("gaoo")) streamRef.value?.setExpression("gaoo");
+  if (t.includes("gaoo")) streamRef.value?.setExpression("gaoo");
+  if (t.includes("superchat")) streamRef.value?.setExpression("superchat");
+  if (t.includes("business")) streamRef.value?.setExpression("business");
+  if (t.includes("you")) streamRef.value?.setExpression("you");
+  if (t.includes("open win")) { invoke("open_windows_sim").catch(()=>{}); }
+  if (t.includes("close win")) { invoke("close_windows_sim").catch(()=>{}); }
 }
 
 onMounted(async () => {
-    // 监听窗口变化 → 匹配规则 → 触发反应
+  if (isWinSim) return;
   try {
     await listen<string>("window-changed", (event) => {
-      console.log("[窗口检测]", event.payload);
       const reply = checkWindow(event.payload);
       if (reply) {
         chatHistory.push({ role: "assistant", text: reply });
@@ -32,7 +42,6 @@ onMounted(async () => {
       }
     });
   } catch {}
-
   new ResizeObserver(() => {
     winSize.value = { w: window.innerWidth, h: window.innerHeight };
   }).observe(document.body);
@@ -40,7 +49,8 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div id="root">
+  <WinSim v-if="isWinSim" />
+  <div v-else id="root">
     <TitleBar :height="30" title="配信中" @toggle-chat="showChat = !showChat" />
     <div id="body">
       <div id="stream-col">

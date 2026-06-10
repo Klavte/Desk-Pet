@@ -6,6 +6,7 @@ defineProps<{ height: number; title: string }>();
 defineEmits<{ "toggle-chat": [] }>();
 
 const win = getCurrentWebviewWindow();
+
 </script>
 
 <template>
@@ -45,7 +46,7 @@ const win = getCurrentWebviewWindow();
 .left { display: flex; align-items: center; gap: 6px; padding-left: 8px; height: 100%; }
 .win-icon { height: 22px; image-rendering: pixelated; }
 .title { color: #fff; font-size: 14px; font-weight: bold; margin-left: 6px; text-shadow: 1px 1px 1px rgba(0,0,0,0.3); }
-.dots { display: inline-flex; gap: 3px; align-items: center; margin-top: 12px; }
+.dots { display: inline-flex; gap: 3px; align-items: center; margin-top: 12px; margin-left: -4px; }
 .dots span {
   display: inline-block;
   width: 4px; height: 4px;
@@ -61,6 +62,16 @@ const win = getCurrentWebviewWindow();
   40% { opacity: 1; transform: translateY(-2px); }
 }
 .right { display: flex; align-items: center; gap: 2px; height: 100%; padding-right: 2px; }
+.btn-win {
+  width: 28px; height: 28px;
+  border: 1px solid rgba(255,180,200,0.4);
+  background: rgba(255,200,220,0.25);
+  border-radius: 3px;
+  cursor: pointer; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.btn-win img { width: 18px; height: 18px; image-rendering: pixelated; }
+.btn-win:hover { background: rgba(255,220,235,0.5); border-color: rgba(255,200,220,0.6); }
 .btn-chat {
   width: 28px; height: 28px;
   border: none; background: none;

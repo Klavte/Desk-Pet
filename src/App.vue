@@ -1,9 +1,12 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import TitleBar from "./components/TitleBar.vue";
 import StreamView from "./components/StreamView.vue";
 import ChatPanel from "./components/ChatPanel.vue";
+import { chatHistory } from "./services/chat";
+import { checkWindow } from "./services/window-monitor";
+import { listen } from "@tauri-apps/api/event";
 
 const showChat = ref(true);
 const winSize = ref({ w: 0, h: 0 });
@@ -17,7 +20,19 @@ function onChatSend(text: string) {
 if (t.includes("gaoo")) streamRef.value?.setExpression("gaoo");
 }
 
-onMounted(() => {
+onMounted(async () => {
+    // 监听窗口变化 → 匹配规则 → 触发反应
+  try {
+    await listen<string>("window-changed", (event) => {
+      console.log("[窗口检测]", event.payload);
+      const reply = checkWindow(event.payload);
+      if (reply) {
+        chatHistory.push({ role: "assistant", text: reply });
+        streamRef.value?.setExpression("smile");
+      }
+    });
+  } catch {}
+
   new ResizeObserver(() => {
     winSize.value = { w: window.innerWidth, h: window.innerHeight };
   }).observe(document.body);

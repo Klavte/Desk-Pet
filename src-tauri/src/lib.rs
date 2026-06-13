@@ -1,4 +1,4 @@
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+﻿#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::thread;
 use std::time::Duration;
@@ -40,6 +40,33 @@ async fn open_windows_sim(app: tauri::AppHandle) -> Result<String, String> {
         .map_err(|e| format!("{}", e))
 }
 
+#[tauri::command]
+fn are_monitors_different(app: tauri::AppHandle) -> bool {
+    #[cfg(target_os = "windows")]
+    unsafe {
+        use windows_sys::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
+        use windows_sys::Win32::Graphics::Gdi::{MonitorFromWindow, MONITOR_DEFAULTTONULL};
+
+        let fg = GetForegroundWindow();
+        if fg == 0 { return false; }
+        let fg_mon = MonitorFromWindow(fg, MONITOR_DEFAULTTONULL);
+        if fg_mon == 0 { return false; }
+
+        let pet_mon = match app.get_webview_window("main") {
+            Some(w) => match w.hwnd() {
+                Ok(h) => MonitorFromWindow(h.0 as isize, MONITOR_DEFAULTTONULL),
+                Err(_) => return false,
+            },
+            None => return false,
+        };
+        if pet_mon == 0 { return false; }
+
+        fg_mon != pet_mon
+    }
+    #[cfg(not(target_os = "windows"))]
+    false
+}
+
 fn get_foreground_window_title() -> String {
     #[cfg(target_os = "windows")]
     unsafe {
@@ -58,6 +85,7 @@ fn get_foreground_window_title() -> String {
 
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             let handle = app.handle().clone();
             thread::spawn(move || {
@@ -71,7 +99,12 @@ pub fn run() {
             });
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![reset_size, close_windows_sim, open_windows_sim])
+        .invoke_handler(tauri::generate_handler![
+            reset_size,
+            close_windows_sim,
+            open_windows_sim,
+            are_monitors_different,
+        ])
         .run(tauri::generate_context!())
-        .expect("启动失败");
+        .expect("startup failure");
 }

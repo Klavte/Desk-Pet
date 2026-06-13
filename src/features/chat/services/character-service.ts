@@ -3,13 +3,13 @@
 // ==========================================
 // 角色人格 —— 使用 Vite ?raw 构建时嵌入，支持 HMR 热更新
 // ==========================================
-import tangtangRaw from "@/features/chat/characters/tangtang.md?raw";
+import angelkawaiiRaw from "@/features/chat/characters/angelkawaii.md?raw";
 import ameRaw from "@/features/chat/characters/ame.md?raw";
 import pchanRaw from "@/features/chat/characters/pchan.md?raw";
 
 /** 角色 ID → 人格内容映射（HMR 时自动刷新） */
 const promptMap: Record<string, string> = {
-  tangtang: tangtangRaw,
+  angelkawaii: angelkawaiiRaw,
   ame: ameRaw,
   pchan: pchanRaw,
 };
@@ -22,13 +22,13 @@ import { registerPromptGetter } from "../config/ai-config";
 
 // 角色管理
 const builtInCharacters: Character[] = [
-  { id: "tangtang", name: "糖糖", promptPath: "tangtang.md" },
+  { id: "angelkawaii", name: "KAngel", promptPath: "angelkawaii.md" },
   { id: "ame", name: "Ame", promptPath: "ame.md" },
   { id: "pchan", name: "P酱", promptPath: "pchan.md" },
 ];
 
 const state: CharacterState = {
-  currentId: "tangtang",
+  currentId: "angelkawaii",
   characters: [...builtInCharacters],
 };
 
@@ -89,4 +89,3 @@ if (import.meta.hot) {
     );
   });
 }
-

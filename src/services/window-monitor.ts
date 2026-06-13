@@ -4,6 +4,9 @@
 // 检测前台窗口标题 → 匹配规则 → 随机反应对话
 // ==========================================
 
+import { invoke } from "@tauri-apps/api/core";
+
+
 interface WindowRule {
   regex: RegExp;
   replies: string[];
@@ -263,6 +266,9 @@ function matchWindow(title: string): string | null {
 
       // 触发后同时设置全局冷却和规则冷却
       globalCooldownUntil = now + GLOBAL_COOLDOWN_SECONDS * 1000;
+      // 暂停 Rust 侧窗口采集
+      invoke("pause_monitor", { durationMs: GLOBAL_COOLDOWN_SECONDS * 1000 }).catch(() => {});
+      setTimeout(() => invoke("resume_monitor").catch(() => {}), GLOBAL_COOLDOWN_SECONDS * 1000 + 2000);
       console.log("[窗口检测] 匹配成功:", key.substring(0, 30), "→", reply);
       console.log("[窗口检测] → 全局冷却:", GLOBAL_COOLDOWN_SECONDS + "s", "| 规则冷却:", RULE_COOLDOWN_SECONDS + "s");
       return reply;

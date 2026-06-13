@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "绯栫硸妗屽疇",
+  "productName": "糖糖桌宠",
   "version": "0.7.0",
   "identifier": "com.deskpet.tangtang",
   "build": {
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "閰嶄俊涓?,
+        "title": "配信中",
         "url": "http://localhost:1420",
         "width": 460,
         "height": 272,
@@ -36,4 +36,3 @@
     "icon": ["icons/32x32.png", "icons/128x128.png", "icons/icon.ico"]
   }
 }
-

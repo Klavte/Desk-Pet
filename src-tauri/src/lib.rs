@@ -4,6 +4,13 @@ use std::thread;
 use std::time::Duration;
 use std::path::PathBuf;
 use tauri::{Emitter, LogicalSize, Manager, WebviewWindow, WebviewWindowBuilder};
+use serde::Serialize;
+
+#[derive(Clone, Serialize)]
+struct WindowChangePayload {
+    title: String,
+    cross_monitor: bool,
+}
 
 #[tauri::command]
 fn close_windows_sim(app: tauri::AppHandle) -> Result<String, String> {
@@ -42,6 +49,10 @@ async fn open_windows_sim(app: tauri::AppHandle) -> Result<String, String> {
 
 #[tauri::command]
 fn are_monitors_different(app: tauri::AppHandle) -> bool {
+    check_cross_monitor(&app)
+}
+
+fn check_cross_monitor(app: &tauri::AppHandle) -> bool {
     #[cfg(target_os = "windows")]
     unsafe {
         use windows_sys::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
@@ -91,9 +102,10 @@ pub fn run() {
             thread::spawn(move || {
                 loop {
                     thread::sleep(Duration::from_secs(3));
-                    let current = get_foreground_window_title();
-                    if !current.is_empty() {
-                        let _ = handle.emit("window-changed", &current);
+                    let title = get_foreground_window_title();
+                    if !title.is_empty() {
+                        let cross = check_cross_monitor(&handle);
+                        let _ = handle.emit("window-changed", WindowChangePayload { title, cross_monitor: cross });
                     }
                 }
             });

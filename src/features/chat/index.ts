@@ -18,6 +18,7 @@ export { OpenAIProvider } from "./providers/openai-provider";
 // ── 服务 ──
 export {
   chatHistory,
+  unansweredCount,
   pushUserMessage,
   pushAssistantMessage,
   getContextMessages,
@@ -25,6 +26,8 @@ export {
   clearHistory,
   deleteMessage,
   initWelcome,
+  incrementUnanswered,
+  resetUnanswered,
 } from "./services/chat-service";
 
 export { AIService } from "./services/ai-service";
@@ -47,6 +50,7 @@ import {
   pushAssistantMessage,
   getContextMessages,
   initWelcome,
+  resetUnanswered,
 } from "./services/chat-service";
 import { CharacterService } from "./services/character-service";
 
@@ -65,8 +69,15 @@ export async function initChat(welcomeText?: string): Promise<void> {
   if (welcomeText) initWelcome(welcomeText);
 }
 
+/**
+ * 发送用户消息并获取 AI 回复
+ * 用户主动发言 → resetUnanswered()
+ */
 export async function sendMessage(text: string): Promise<string> {
   pushUserMessage(text);
+
+  // 用户主动发言 → 重置未回复计数
+  resetUnanswered();
 
   const context = getContextMessages();
   const systemPrompt = getSystemPrompt();

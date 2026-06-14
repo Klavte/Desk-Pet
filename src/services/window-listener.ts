@@ -4,7 +4,7 @@
 
 import { type Ref } from "vue";
 import { listen } from "@tauri-apps/api/event";
-import { pushAssistantMessage } from "@/features/chat";
+import { pushAssistantMessage, incrementUnanswered } from "@/features/chat";
 import { checkWindowTiming } from "./window-monitor";
 import { generateActiveMessage } from "./active-context";
 import type { StreamViewRef } from "./command-handler";
@@ -33,11 +33,16 @@ export async function initWindowListener(
   try {
     const unlisten = await listen<WindowChangePayload>("window-changed", (event) => {
       const { title, content, cross_monitor } = event.payload;
+
+      // 诊断日志：确认事件是否到达
+      console.log("[事件] 窗口:", (title || "(空)").substring(0, 60));
+
       if (!checkWindowTiming(title)) return;
 
       generateActiveMessage({ title, content: content || title, timestamp: Date.now() }).then((reply) => {
         if (reply) {
           pushAssistantMessage(reply);
+          incrementUnanswered();
           streamRef.value?.setExpression("smile");
           if (cross_monitor) sendToastNotification(reply);
         }

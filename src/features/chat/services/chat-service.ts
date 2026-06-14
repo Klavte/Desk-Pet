@@ -1,4 +1,4 @@
-﻿import { reactive } from "vue";
+﻿import { reactive, ref } from "vue";
 import type { Message } from "../types/message";
 import { createUserMessage, createAssistantMessage } from "../types/message";
 
@@ -18,6 +18,45 @@ export const chatHistory = reactive<Message[]>([]);
 export function initWelcome(text: string): void {
   if (chatHistory.length === 0) {
     chatHistory.push(createAssistantMessage(text));
+  }
+}
+
+// ==========================================
+// 未回复状态追踪
+// ==========================================
+
+const UNANSWERED_STORAGE_KEY = "deskpet_unanswered";
+
+/** 加载持久化值 */
+function loadUnanswered(): number {
+  try {
+    const raw = localStorage.getItem(UNANSWERED_STORAGE_KEY);
+    const val = raw ? parseInt(raw, 10) : 0;
+    return Number.isFinite(val) && val >= 0 ? val : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/** 保存到 localStorage */
+function saveUnanswered(count: number): void {
+  try { localStorage.setItem(UNANSWERED_STORAGE_KEY, String(count)); } catch {}
+}
+
+/** 主动消息未回复计数（响应式 + 持久化） */
+export const unansweredCount = ref(loadUnanswered());
+
+/** 主动消息发送成功后调用 */
+export function incrementUnanswered(): void {
+  unansweredCount.value += 1;
+  saveUnanswered(unansweredCount.value);
+}
+
+/** 用户发送消息时调用 */
+export function resetUnanswered(): void {
+  if (unansweredCount.value !== 0) {
+    unansweredCount.value = 0;
+    saveUnanswered(0);
   }
 }
 

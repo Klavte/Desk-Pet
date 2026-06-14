@@ -7,8 +7,8 @@ import { isCoolingDown, isAIGenerating, triggerCooldown, setCooldown, getCooldow
 
 const STAY_SECONDS = 60;
 const SETTLE_MS = 2000;
-const COOLDOWN_SECONDS = 5000;
-export const SAME_PAGE_COOLDOWN_SECONDS = 7800;
+const COOLDOWN_SECONDS = 1800;
+export const SAME_PAGE_COOLDOWN_SECONDS = 6000;
 
 let currentWindowTitle = "";
 let stayStartTime = 0;
@@ -24,19 +24,32 @@ export interface TriggerResult {
 
 export function checkWindowTiming(title: string): boolean {
   if (title !== currentWindowTitle) {
-    if (title !== pendingTitle) { pendingTitle = title; pendingTime = Date.now(); return false; }
-    if (Date.now() - pendingTime >= SETTLE_MS) {
+    // 窗口切换或初次检测
+    if (title !== pendingTitle) {
+      pendingTitle = title;
+      pendingTime = Date.now();
+      console.log("[计时] 新窗口:", title.substring(0, 40), "→ 等待", SETTLE_MS / 1000 + "s 稳定");
+      return false;
+    }
+    // 同一待定窗口，检查稳定期
+    const settleElapsed = (Date.now() - pendingTime) / 1000;
+    if (settleElapsed >= SETTLE_MS / 1000) {
+      console.log("[计时] 窗口稳定:", pendingTitle.substring(0, 40));
       currentWindowTitle = pendingTitle;
       stayStartTime = Date.now();
       pendingTitle = "";
+    } else {
+      console.log("[计时] 待稳定:", pendingTitle.substring(0, 40), "→", settleElapsed.toFixed(1) + "s / " + SETTLE_MS / 1000 + "s");
     }
     return false;
   }
+
+  // 同一窗口持续停留
   const elapsed = (Date.now() - stayStartTime) / 1000;
   console.log("[计时] 停留:", currentWindowTitle.substring(0, 40), "|", elapsed.toFixed(1) + "s /", STAY_SECONDS + "s");
   if (elapsed < STAY_SECONDS) return false;
-  if (isCoolingDown()) return false;
-  if (isAIGenerating()) return false;
+  if (isCoolingDown()) { console.log("[计时] 冷却中，跳过"); return false; }
+  if (isAIGenerating()) { console.log("[计时] AI 生成中，跳过"); return false; }
   stayStartTime = Date.now();
   return true;
 }

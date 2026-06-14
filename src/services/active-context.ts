@@ -2,7 +2,7 @@
 // AI 主动消息引擎（统一冷却）
 // ==========================================
 
-import { AIService, CharacterService, pushAssistantMessage, getSystemPrompt } from "@/features/chat";
+import { AIService, CharacterService, pushAssistantMessage, getSystemPrompt, unansweredCount } from "@/features/chat";
 import { DeepSeekProvider } from "@/features/chat/providers/deepseek-provider";
 import { isCoolingDown, isAIGenerating, setAIGenerating } from "./cooldown";
 import { processTrigger, SAME_PAGE_COOLDOWN_SECONDS } from "./window-monitor";
@@ -53,7 +53,7 @@ export async function generateActiveMessage(ctx: PageContext): Promise<string | 
     const userMsg: Message = {
       id: "active-" + Date.now(),
       role: "user",
-      text: `主人正在使用: ${ctx.title}`,
+      text: `主人正在使用: ${ctx.title}\n当前状态：\nunansweredCount: ${unansweredCount.value}`,
       timestamp: Date.now(),
     };
 

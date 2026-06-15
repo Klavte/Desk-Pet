@@ -1,4 +1,4 @@
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+﻿#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::sync::{Arc, Mutex, Condvar, atomic::{AtomicBool, Ordering}};
 use std::thread;
@@ -18,6 +18,7 @@ struct WindowChangePayload {
     title: String,
     content: String,
     cross_monitor: bool,
+    is_pet_minimized: bool,
 }
 
 fn capture_window_title() -> String {
@@ -53,6 +54,12 @@ fn check_cross_monitor(app: &tauri::AppHandle) -> bool {
     }
     #[cfg(not(target_os = "windows"))]
     false
+}
+
+fn is_pet_minimized(app: &tauri::AppHandle) -> bool {
+    app.get_webview_window("main")
+        .map(|w| w.is_minimized().unwrap_or(false))
+        .unwrap_or(false)
 }
 
 #[tauri::command]
@@ -137,10 +144,12 @@ pub fn run() {
                 let title = capture_window_title();
                 if !title.is_empty() {
                     let cross = check_cross_monitor(&handle);
+                    let minimized = is_pet_minimized(&handle);
                     let _ = handle.emit("window-changed", WindowChangePayload {
                         title: title.clone(),
                         content: title,
                         cross_monitor: cross,
+                        is_pet_minimized: minimized,
                     });
                 }
             });

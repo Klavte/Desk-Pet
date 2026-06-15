@@ -40,8 +40,9 @@ export function resetCooldown(): void {
   globalCooldownUntil = 0;
 }
 
-// ── AI 生成并发锁（防止异步 AI 调用期间重复触发） ──
+// ── AI 生成并发锁（防死锁：30s 安全超时自动解锁） ──
 let aiGenerating = false;
+let aiSafetyTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function isAIGenerating(): boolean {
   return aiGenerating;
@@ -49,9 +50,25 @@ export function isAIGenerating(): boolean {
 
 export function setAIGenerating(v: boolean): void {
   aiGenerating = v;
+  if (aiSafetyTimer) { clearTimeout(aiSafetyTimer); aiSafetyTimer = null; }
+  if (v) {
+    // 安全超时：30s 后强制解锁，防止因任何异常导致锁永远不释放
+    aiSafetyTimer = setTimeout(() => {
+      if (aiGenerating) {
+        console.warn("[Cooldown] AI 生成锁超时（30s），强制解锁");
+        aiGenerating = false;
+      }
+      aiSafetyTimer = null;
+    }, 30000);
+  }
 }
 
 // 暴露到 window 方便 F12 调试
 if (typeof window !== "undefined") {
-  (window as any).__cooldown = { isCoolingDown, remainingSeconds, triggerCooldown, resetCooldown, getCooldownSeconds, setCooldown };
+  (window as any).__cooldown = {
+    isCoolingDown, remainingSeconds, triggerCooldown, resetCooldown,
+    getCooldownSeconds, setCooldown,
+    isAIGenerating, setAIGenerating,  // 调试锁状态
+  };
+  console.log("[Cooldown] __cooldown 已就绪（含 AI 锁 30s 安全超时）");
 }

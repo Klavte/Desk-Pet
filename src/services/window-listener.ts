@@ -7,12 +7,14 @@ import { listen } from "@tauri-apps/api/event";
 import { pushAssistantMessage, incrementUnanswered } from "@/features/chat";
 import { checkWindowTiming } from "./window-monitor";
 import { generateActiveMessage } from "./active-context";
+import { playNotificationByBoundary } from "./audio/notificationSound";
 import type { StreamViewRef } from "./command-handler";
 
 interface WindowChangePayload {
   title: string;
   content: string;
   cross_monitor: boolean;
+  is_pet_minimized: boolean;
 }
 
 async function sendToastNotification(body: string): Promise<void> {
@@ -32,9 +34,8 @@ export async function initWindowListener(
 
   try {
     const unlisten = await listen<WindowChangePayload>("window-changed", (event) => {
-      const { title, content, cross_monitor } = event.payload;
+      const { title, content, cross_monitor, is_pet_minimized } = event.payload;
 
-      // 诊断日志：确认事件是否到达
       console.log("[事件] 窗口:", (title || "(空)").substring(0, 60));
 
       if (!checkWindowTiming(title)) return;
@@ -44,7 +45,13 @@ export async function initWindowListener(
           pushAssistantMessage(reply);
           incrementUnanswered();
           streamRef.value?.setExpression("smile");
-          if (cross_monitor) sendToastNotification(reply);
+
+          // 人格界限联动提示音（主动消息成功发送后播放）
+          playNotificationByBoundary();
+
+          if (cross_monitor || is_pet_minimized) {
+            sendToastNotification(reply);
+          }
         }
       });
     });

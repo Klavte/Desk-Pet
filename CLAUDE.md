@@ -74,15 +74,24 @@ Desk-Pet/
 │   ├── capabilities/default.json
 │   └── src/
 │       ├── main.rs              # cfg_attr 条件 windows_subsystem
-│       └── lib.rs               # 后台线程轮询 → emit("window-changed")
-│           ├── capture_window_title()   Win32 GetForegroundWindow | osascript
-│           ├── check_cross_monitor()    MonitorFromWindow | 鼠标位置启发式
-│           ├── create_main_window()          Rust 手动创建窗口（ActivationPolicy 之后）
-│           ├── enhance_to_iterm_style()       iTerm 风格增强：MainMenu(24) + canJoinAllSpaces + fullScreenAux + stationary + ignoresCycle + transient
-│           ├── log_message()            接收前端日志 → println 到终端
-│           ├── enhance_settings_window()       设置窗口层级提升：macOS level 100 + orderFrontRegardless（浮在主窗口之上）
-│           ├── set_monitor_config() 等 10 个 Tauri Commands
-│           └── 系统托盘 (TrayIconBuilder)  关闭按钮 → 隐藏到托盘，左键单击恢复
+│       ├── lib.rs               # mod 声明 + run() 启动入口
+│       ├── macros/
+│       │   └── mod.rs           # Rust 日志宏 (rust_info!/rust_debug!/rust_warn!)
+│       ├── monitor/
+│       │   ├── mod.rs           # MonitorState + WindowChangePayload
+│       │   ├── capture.rs       # 窗口标题捕获 (Win: GetForegroundWindow / Mac: osascript)
+│       │   ├── cross.rs         # 跨屏检测 + 最小化判断
+│       │   └── thread.rs        # 后台监控线程 spawn
+│       ├── window/
+│       │   ├── mod.rs           # 统一导出
+│       │   ├── main_win.rs      # 主窗口创建 + iTerm 风格增强
+│       │   └── settings.rs      # 设置窗口层级提升
+│       └── commands/
+│           ├── mod.rs           # 统一导出
+│           ├── cursor.rs        # get_cursor_position + compute_popup_position（共享光标辅助函数）
+│           ├── monitor_ctl.rs   # pause/resume/set_monitor_config
+│           ├── sim.rs           # open/close_windows_sim
+│           └── logging.rs       # log_message + focus_main
 │
 └── public/assets/               # 静态资源
 ```

@@ -340,11 +340,4 @@ export function playNotificationByBoundary(): void {
 
 // ── 向后兼容导出（供旧代码平滑迁移）──
 // 直接播放默认音效（不打用户分配），供设置预览使用
-export const playPopupSound = () => getSoundById("popup_up")?.play();
-export const playRetractSound = () => getSoundById("retract_down")?.play();
 export const playWelcomeSound = () => getSoundById("welcome_chord")?.play();
-export const playSendSound = () => getSoundById("send_short")?.play();
-export const playReplySound = () => getSoundById("reply_ding")?.play();
-export const playSurfaceSound = () => getSoundById("surface_light")?.play();
-export const playMiddleSound = () => getSoundById("middle_tremolo")?.play();
-export const playDeepSound = () => getSoundById("deep_noise")?.play();

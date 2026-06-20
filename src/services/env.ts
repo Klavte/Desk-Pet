@@ -45,11 +45,11 @@ export const isMacOS = platform === "macos";
 export const isLinux = platform === "linux";
 export const isDev = detectDev();
 
-/** 窗口监控是否可用（当前仅 Windows 支持原生窗口标题捕获） */
-export const windowMonitorAvailable = isWindows;
+/** 窗口监控是否可用（Windows: 原生 API, macOS: osascript） */
+export const windowMonitorAvailable = isWindows || isMacOS;
 
 /** 跨显示器检测是否可用 */
-export const crossMonitorAvailable = isWindows;
+export const crossMonitorAvailable = isWindows || isMacOS;
 
 // 打印检测结果（开发环境）
 if (isDev) {

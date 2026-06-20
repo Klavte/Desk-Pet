@@ -35,13 +35,12 @@ impl Default for MonitorState {
 pub struct WindowChangePayload {
     pub title: String,
     pub content: String,
-    pub cross_monitor: bool,
-    pub is_pet_minimized: bool,
+    pub is_pet_visible: bool,
 }
 
 // ── 子模块声明 ──
 mod capture;
-mod cross;
+mod visibility;
 mod thread;
 
 pub use thread::spawn_monitor_thread;

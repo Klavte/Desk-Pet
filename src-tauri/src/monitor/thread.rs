@@ -10,7 +10,7 @@ use tauri::Emitter;
 
 use super::{MonitorState, WindowChangePayload};
 use super::capture::capture_window_title;
-use super::cross::{check_cross_monitor, is_pet_minimized};
+use super::visibility::is_pet_visible;
 
 use crate::{rust_info, rust_debug, rust_log};
 
@@ -31,14 +31,12 @@ pub fn spawn_monitor_thread(
 
             let title = capture_window_title();
             if !title.is_empty() {
-                let cross = check_cross_monitor(&handle);
-                let minimized = is_pet_minimized(&handle);
-                rust_debug!("emit window-changed | 跨屏:{} 最小化:{}", cross, minimized);
+                let visible = is_pet_visible(&handle);
+                rust_debug!("emit window-changed | 可见:{}", visible);
                 let _ = handle.emit("window-changed", WindowChangePayload {
                     title: title.clone(),
                     content: title,
-                    cross_monitor: cross,
-                    is_pet_minimized: minimized,
+                    is_pet_visible: visible,
                 });
             }
         }

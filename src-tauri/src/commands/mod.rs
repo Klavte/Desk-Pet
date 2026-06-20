@@ -10,4 +10,4 @@ pub mod logging;
 pub use cursor::{get_cursor_position, compute_popup_position};
 pub use monitor_ctl::{pause_monitor, resume_monitor, set_monitor_config};
 pub use sim::{open_windows_sim, close_windows_sim};
-pub use logging::{log_message, focus_main};
+pub use logging::{log_message, focus_main, send_osx_notification};

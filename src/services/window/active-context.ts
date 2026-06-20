@@ -4,7 +4,8 @@
 
 import { AIService, OpenAICompatibleProvider, getSystemPrompt, unansweredCount } from "@/services/ai";
 import { isCoolingDown, isAIGenerating, setAIGenerating } from "@/services/cooldown";
-import { processTrigger, SAME_PAGE_COOLDOWN_SECONDS } from "./monitor";
+import { processTrigger } from "./monitor";
+import { windowMonitorConfig } from "@/services/config";
 import { createLogger } from "@/services/logger";
 import type { Message } from "@/services/ai";
 
@@ -32,7 +33,7 @@ export async function generateActiveMessage(ctx: PageContext): Promise<string | 
   if (isCoolingDown()) { log.debug("全局冷却中，跳过"); return null; }
 
   const contentHash = hash(ctx.title + ctx.content.substring(0, 200));
-  if (contentHash === lastContentHash && Date.now() - lastTriggerTime < SAME_PAGE_COOLDOWN_SECONDS * 1000) {
+  if (contentHash === lastContentHash && Date.now() - lastTriggerTime < windowMonitorConfig.samePageCooldownSeconds * 1000) {
     log.debug("同页面冷却中");
     return null;
   }

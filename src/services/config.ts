@@ -13,8 +13,8 @@ interface UserSettings {
   shortcutKey: string;
   shortcutMacModifiers: string[];
   shortcutWinModifiers: string[];
-  /** 音效分配: 事件key → 音效ID (空值="none"关闭) */
-  soundAssignments: Record<string, string>;
+  /** 收到新消息时自动弹出窗口 */
+  autoPopupOnMessage: boolean;
 }
 
 interface Config {
@@ -43,6 +43,7 @@ interface Config {
     maxEntries: number;
   };
   notification: {
+    enabled: boolean;
     autoCloseMs: number;
   };
   desktop: {
@@ -75,7 +76,7 @@ const USER_DEFAULTS: UserSettings = {
   shortcutKey: cfg.user?.shortcutKey || cfg.shortcut?.key || "P",
   shortcutMacModifiers: cfg.user?.shortcutMacModifiers || cfg.shortcut?.macModifiers || ["Control", "Command"],
   shortcutWinModifiers: cfg.user?.shortcutWinModifiers || cfg.shortcut?.winModifiers || ["Control", "Alt"],
-  soundAssignments: {},
+  autoPopupOnMessage: cfg.user?.autoPopupOnMessage ?? false,
 };
 
 function loadUserOverrides(): UserSettings {
@@ -122,8 +123,8 @@ export const userConfig = {
   set shortcutMacModifiers(v: string[]) { const u = loadUserOverrides(); u.shortcutMacModifiers = v; _cache = u; saveUserOverrides(u); },
   get shortcutWinModifiers() { return getUser().shortcutWinModifiers; },
   set shortcutWinModifiers(v: string[]) { const u = loadUserOverrides(); u.shortcutWinModifiers = v; _cache = u; saveUserOverrides(u); },
-  get soundAssignments() { return getUser().soundAssignments; },
-  set soundAssignments(v: Record<string, string>) { const u = loadUserOverrides(); u.soundAssignments = v; _cache = u; saveUserOverrides(u); },
+  get autoPopupOnMessage() { return getUser().autoPopupOnMessage; },
+  set autoPopupOnMessage(v: boolean) { const u = loadUserOverrides(); u.autoPopupOnMessage = v; _cache = u; saveUserOverrides(u); },
   /** 获取所有值 */
   getAll(): UserSettings { return { ...getUser() }; },
   /** 批量保存 */
@@ -235,6 +236,7 @@ export const memoryConfig = {
 // 通知弹窗配置
 // ==========================================
 export const notificationConfig = {
+  get enabled() { return overrideOr("notification.enabled", cfg.notification.enabled ?? true); },
   get autoCloseMs() { return overrideOr("notification.autoCloseMs", cfg.notification.autoCloseMs || 8000); },
 };
 

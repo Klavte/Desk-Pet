@@ -9,18 +9,12 @@ import { createLogger } from "@/services/logger";
 
 const log = createLogger("WinMon");
 
-const STAY_SECONDS = windowMonitorConfig.staySeconds;
-const SETTLE_MS = windowMonitorConfig.settleMs;
-const COOLDOWN_SECONDS = windowMonitorConfig.cooldownSeconds;
-const RESUME_EXTRA_MS = windowMonitorConfig.resumeExtraMs;
-export const SAME_PAGE_COOLDOWN_SECONDS = windowMonitorConfig.samePageCooldownSeconds;
-
 let currentWindowTitle = "";
 let stayStartTime = 0;
 let pendingTitle = "";
 let pendingTime = 0;
 
-setCooldown(COOLDOWN_SECONDS);
+setCooldown(windowMonitorConfig.cooldownSeconds);
 
 export interface TriggerResult {
   source: "regex" | "ai";
@@ -28,9 +22,19 @@ export interface TriggerResult {
 }
 
 export function checkWindowTiming(title: string): boolean {
+  // 每次运行时读取最新配置值（防止模块级 const 缓存在覆盖值更新后不生效）
+  const staySeconds = windowMonitorConfig.staySeconds;
+  const settleMs = windowMonitorConfig.settleMs;
+  const cooldownSeconds = windowMonitorConfig.cooldownSeconds;
+  const samePageCooldownSeconds = windowMonitorConfig.samePageCooldownSeconds;
+  const resumeExtraMs = windowMonitorConfig.resumeExtraMs;
+
+  // 更新全局冷却时长为最新配置值
+  setCooldown(cooldownSeconds);
+
   if (title !== currentWindowTitle) {
     if (title !== pendingTitle) { pendingTitle = title; pendingTime = Date.now(); return false; }
-    if (Date.now() - pendingTime >= SETTLE_MS) {
+    if (Date.now() - pendingTime >= settleMs) {
       currentWindowTitle = pendingTitle;
       stayStartTime = Date.now();
       pendingTitle = "";
@@ -38,8 +42,8 @@ export function checkWindowTiming(title: string): boolean {
     return false;
   }
   const elapsed = (Date.now() - stayStartTime) / 1000;
-  log.debug("停留:", currentWindowTitle.substring(0, 40), "|", elapsed.toFixed(1) + "s /", STAY_SECONDS + "s");
-  if (elapsed < STAY_SECONDS) return false;
+  log.debug("停留:", currentWindowTitle.substring(0, 40), "|", elapsed.toFixed(1) + "s /", staySeconds + "s");
+  if (elapsed < staySeconds) return false;
   if (isCoolingDown()) { log.debug("跳过：全局冷却中"); return false; }
   if (isAIGenerating()) { log.debug("跳过：AI 生成中（锁占用）"); return false; }
   stayStartTime = Date.now();
@@ -49,7 +53,8 @@ export function checkWindowTiming(title: string): boolean {
 export function processTrigger(result: TriggerResult): void {
   triggerCooldown();
   const s = getCooldownSeconds();
+  const resumeExtraMs = windowMonitorConfig.resumeExtraMs;
   invoke("pause_monitor", { durationMs: s * 1000 }).catch(() => {});
-  setTimeout(() => invoke("resume_monitor").catch(() => {}), s * 1000 + RESUME_EXTRA_MS);
+  setTimeout(() => invoke("resume_monitor").catch(() => {}), s * 1000 + resumeExtraMs);
   log.info("source:", result.source, "→ 全局冷却:", s + "s");
 }

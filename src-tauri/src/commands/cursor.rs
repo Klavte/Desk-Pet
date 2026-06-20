@@ -72,6 +72,9 @@ fn get_cursor_and_screen() -> Result<CursorScreen, String> {
         ));
     }
 
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    compile_error!("get_cursor_and_screen: 不支持的平台");
+
     #[allow(unreachable_code)]
     Err("无法获取光标位置".into())
 }

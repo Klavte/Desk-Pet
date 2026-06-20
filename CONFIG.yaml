@@ -47,6 +47,7 @@ memory:
 
 # ── 通知弹窗 ──
 notification:
+  enabled: true                 # 是否启用系统通知弹窗
   autoCloseMs: 8000            # 自动关闭延迟（毫秒）
 
 # ── 桌面后端（Rust 轮询）──
@@ -68,7 +69,7 @@ user:
   shortcutKey: "P"
   shortcutMacModifiers: ["Control", "Command"]
   shortcutWinModifiers: ["Control", "Alt"]
-  soundAssignments: {}          # 音效分配: 事件→音效ID (空=默认)
+  autoPopupOnMessage: false      # 收到新消息时自动弹出窗口
 
 # ── 日志 ──
 logging:

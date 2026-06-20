@@ -8,7 +8,7 @@ import { pushAssistantMessage, incrementUnanswered } from "@/services/ai";
 import { checkWindowTiming } from "./monitor";
 import { generateActiveMessage } from "./active-context";
 import { playNotificationByBoundary } from "@/services/audio/registry";
-import { windowMonitorConfig } from "@/services/config";
+import { windowMonitorConfig, notificationConfig } from "@/services/config";
 import { createLogger } from "@/services/logger";
 import type { StreamViewRef } from "@/services/command-handler";
 
@@ -17,17 +17,38 @@ const log = createLogger("WinLis");
 interface WindowChangePayload {
   title: string;
   content: string;
-  cross_monitor: boolean;
-  is_pet_minimized: boolean;
+  is_pet_visible: boolean;
 }
 
-async function sendToastNotification(body: string): Promise<void> {
+export async function sendToastNotification(body: string): Promise<void> {
+  // 1. 尝试 tauri-plugin-notification（macOS 需代码签名才能正常工作）
   try {
     const { sendNotification, isPermissionGranted, requestPermission } = await import("@tauri-apps/plugin-notification");
     let granted = await isPermissionGranted();
-    if (!granted) { const r = await requestPermission(); granted = r === "granted"; }
-    if (granted) sendNotification({ title: "糖糖", body });
-  } catch {}
+    if (!granted) {
+      const r = await requestPermission();
+      granted = r === "granted";
+      log.debug("通知权限请求:", r);
+    }
+    if (granted) {
+      sendNotification({ title: "糖糖", body });
+      log.info("系统通知已发送:", body.substring(0, 30));
+      return;
+    } else {
+      log.warn("通知权限未授予");
+    }
+  } catch (e) {
+    log.warn("tauri-plugin-notification 不可用, 尝试 fallback", e instanceof Error ? e.message : "");
+  }
+
+  // 2. macOS fallback: osascript display notification（无需代码签名）
+  try {
+    const { invoke } = await import("@tauri-apps/api/core");
+    await invoke("send_osx_notification", { title: "糖糖", body });
+    log.info("系统通知已发送(osascript):", body.substring(0, 30));
+  } catch (e) {
+    log.error("所有通知方式均失败", e instanceof Error ? e : undefined);
+  }
 }
 
 export async function initWindowListener(
@@ -39,7 +60,7 @@ export async function initWindowListener(
   try {
     const unlisten = await listen<WindowChangePayload>("window-changed", (event) => {
       if (!windowMonitorConfig.enabled) return;
-      const { title, content, cross_monitor, is_pet_minimized } = event.payload;
+      const { title, content, is_pet_visible } = event.payload;
       log.debug("窗口:", (title || "(空)").substring(0, 60));
       if (!checkWindowTiming(title)) return;
 
@@ -49,7 +70,8 @@ export async function initWindowListener(
           incrementUnanswered();
           streamRef.value?.setExpression("smile");
           playNotificationByBoundary();
-          if (cross_monitor || is_pet_minimized) sendToastNotification(reply);
+          // 桌宠收回（隐藏）时发送系统通知
+          if (notificationConfig.enabled && !is_pet_visible) sendToastNotification(reply);
         }
       });
     });

@@ -3,6 +3,6 @@
 // ==========================================
 
 export { initWindowListener } from "./listener";
-export { checkWindowTiming, processTrigger, SAME_PAGE_COOLDOWN_SECONDS } from "./monitor";
+export { checkWindowTiming, processTrigger } from "./monitor";
 export type { TriggerResult } from "./monitor";
 export { generateActiveMessage } from "./active-context";

@@ -17,7 +17,7 @@ import { initChat } from "@/services/ai";
 import { desktopConfig, shortcutConfig, userConfig, refreshUserCache } from "@/services/config";
 import { isMacOS } from "@/services/env";
 import { createLogger } from "@/services/logger";
-import { playEventSound, playWelcomeSound } from "@/services/audio/registry";
+import { playEventSound } from "@/services/audio/registry";
 import { emit, listen } from "@tauri-apps/api/event";
 
 const log = createLogger("Shortcut");
@@ -34,6 +34,13 @@ const chatRef = ref<InstanceType<typeof ChatPanel> | null>(null);
 
 function onChatSend(text: string) {
   handleCommand(text, streamRef.value);
+}
+
+/** 收到新消息时自动弹出（如果已收回） */
+function onRequestPopup() {
+  if (isRetracted.value && !isAnimating.value) {
+    handleShortcutToggle();
+  }
 }
 
 /** 打开/聚焦设置窗口 */
@@ -363,7 +370,7 @@ onMounted(async () => {
     waitTimeoutMs: desktopConfig.waitTimeoutMs,
   }).catch(() => {});
   await initChat("Pちゃん！你终于来了！今天也要一直在一起哦～♡");
-  playWelcomeSound();
+  playEventSound("welcome");
   cleanupListener = await initWindowListener(streamRef, winSize);
 
   // 全局快捷键（使用用户配置）
@@ -431,9 +438,12 @@ onMounted(async () => {
 
   // 设置面板保存 → 清除主窗口的配置缓存（跨窗口同步）
   try {
-    cleanupSettingsSaved = await listen("deskpet-settings-saved", () => {
+    cleanupSettingsSaved = await listen("deskpet-settings-saved", async () => {
       refreshUserCache();
-      log.debug("配置缓存已刷新（设置面板保存）");
+      // 重注册快捷键（用户可能在设置面板修改了快捷键）
+      await unregisterShortcut();
+      await registerShortcut();
+      log.debug("配置缓存已刷新 + 快捷键已重注册");
     });
   } catch { /* ignore */ }
 
@@ -482,7 +492,7 @@ onUnmounted(() => {
         <StreamView ref="streamRef" />
       </div>
       <div id="chat-slot" :class="{ closed: !showChat }">
-        <ChatPanel v-if="showChat" ref="chatRef" @send="onChatSend" />
+        <ChatPanel v-show="showChat" ref="chatRef" @send="onChatSend" @request-popup="onRequestPopup" />
       </div>
     </div>
 

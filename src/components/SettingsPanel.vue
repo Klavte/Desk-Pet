@@ -55,6 +55,7 @@ const aiSystemPrompt = ref(aiConfig.defaultSystemPrompt);
 const showApiKey = ref(false);
 
 // ── 窗口监控 ──
+const wmEnabled = ref(windowMonitorConfig.enabled);
 const wmStaySeconds = ref(windowMonitorConfig.staySeconds);
 const wmSettleMs = ref(windowMonitorConfig.settleMs);
 const wmCooldownSec = ref(windowMonitorConfig.cooldownSeconds);
@@ -67,6 +68,7 @@ const lockTimeout = ref(aiLockConfig.safetyTimeoutMs);
 const memMax = ref(memoryConfig.maxEntries);
 
 // ── 通知 ──
+const notifEnabled = ref(notificationConfig.enabled);
 const notifClose = ref(notificationConfig.autoCloseMs);
 
 // ── 桌面 ──
@@ -79,6 +81,7 @@ const logLevel = ref(loggingConfig.level);
 
 // ── 用户设置 ──
 const popupMode = ref(userConfig.popupMode);
+const autoPopup = ref(userConfig.autoPopupOnMessage);
 const popupW = ref(userConfig.popupSize.w);
 const popupH = ref(userConfig.popupSize.h);
 const popupDefaultSize = { w: 448, h: 272 };
@@ -142,6 +145,7 @@ const saved = ref(false);
 async function doSave() {
   // 运行时设置（立即生效）
   userConfig.popupMode = popupMode.value;
+  userConfig.autoPopupOnMessage = autoPopup.value;
   userConfig.popupSize = { w: popupW.value, h: popupH.value };
   userConfig.shortcutKey = recKey.value;
   if (isMacOS) userConfig.shortcutMacModifiers = recMods.value;
@@ -157,6 +161,7 @@ async function doSave() {
     "ai.model": aiModel.value,
     "ai.maxContextMessages": aiMaxContext.value,
     "ai.defaultSystemPrompt": aiSystemPrompt.value,
+    "windowMonitor.enabled": wmEnabled.value,
     "windowMonitor.staySeconds": wmStaySeconds.value,
     "windowMonitor.settleMs": wmSettleMs.value,
     "windowMonitor.cooldownSeconds": wmCooldownSec.value,
@@ -164,6 +169,7 @@ async function doSave() {
     "aiLock.safetyTimeoutMs": lockTimeout.value,
     "memory.maxEntries": memMax.value,
     "notification.autoCloseMs": notifClose.value,
+    "notification.enabled": notifEnabled.value,
     "desktop.pollingIntervalMs": deskPoll.value,
     "desktop.pauseExtraMs": deskPause.value,
     "desktop.waitTimeoutMs": deskWait.value,
@@ -250,6 +256,12 @@ onUnmounted(() => {
       <!-- 窗口监控 -->
       <div class="s-section">
         <div class="s-label">👁 窗口监控 <span class="s-tag">即时生效</span></div>
+        <div class="s-field-inline" style="margin-bottom:4px">
+          <label class="radio-item">
+            <input type="checkbox" v-model="wmEnabled" />
+            <span>启用窗口监控（停留触发 AI 主动搭话）</span>
+          </label>
+        </div>
         <div class="s-field-inline">
           <label>停留触发 <input class="s-input-num" type="number" v-model.number="wmStaySeconds" /> 秒</label>
           <label>防抖 <input class="s-input-num" type="number" v-model.number="wmSettleMs" /> ms</label>
@@ -267,6 +279,12 @@ onUnmounted(() => {
           <label>锁超时 <input class="s-input-num" type="number" v-model.number="lockTimeout" /> ms</label>
           <label>记忆上限 <input class="s-input-num" type="number" v-model.number="memMax" /> 条</label>
           <label>通知关闭 <input class="s-input-num" type="number" v-model.number="notifClose" /> ms</label>
+        </div>
+        <div class="s-field-inline" style="margin-top:4px">
+          <label class="radio-item">
+            <input type="checkbox" v-model="notifEnabled" />
+            <span>启用系统通知（跨屏/最小化时弹窗提醒）</span>
+          </label>
         </div>
       </div>
 
@@ -309,6 +327,12 @@ onUnmounted(() => {
         </div>
         <div v-if="popupMode === 'cursor'" class="s-hint">
           弹出时以光标为中心自动计算位置，超出屏幕自动贴边
+        </div>
+        <div class="s-field-inline" style="margin-top:6px">
+          <label class="radio-item">
+            <input type="checkbox" v-model="autoPopup" />
+            <span>收到新消息时自动弹出窗口</span>
+          </label>
         </div>
       </div>
 

@@ -7,8 +7,6 @@ import type { Message } from "./types";
 import { createUserMessage, createAssistantMessage } from "./types";
 import { aiConfig } from "@/services/config";
 
-const MAX_CONTEXT_MESSAGES = aiConfig.maxContextMessages;
-
 export const chatHistory = reactive<Message[]>([]);
 
 export function initWelcome(text: string): void {
@@ -56,7 +54,7 @@ export function pushAssistantMessage(text: string): Message {
   return msg;
 }
 export function getContextMessages(): Message[] {
-  return chatHistory.slice(-MAX_CONTEXT_MESSAGES);
+  return chatHistory.slice(-aiConfig.maxContextMessages);
 }
 export function getFullHistory(): Message[] {
   return [...chatHistory];

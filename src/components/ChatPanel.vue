@@ -2,10 +2,14 @@
 import { ref, nextTick, onMounted, watch } from "vue";
 import { chatHistory, sendMessage } from "@/services/ai";
 import { playEventSound } from "@/services/audio/registry";
+import { notificationConfig, userConfig } from "@/services/config";
+import { createLogger } from "@/services/logger";
 
-const emit = defineEmits<{ send: [text: string] }>();
+const log = createLogger("ChatPanel");
+
+const emit = defineEmits<{ send: [text: string]; "request-popup": [] }>();
 const input = ref("");
-const inputRef = ref<HTMLInputElement | null>(null);
+const inputRef = ref<HTMLTextAreaElement | null>(null);
 const msgContainer = ref<HTMLElement | null>(null);
 const thumb = ref<HTMLElement | null>(null);
 
@@ -46,9 +50,21 @@ watch(
   () => chatHistory.length,
   (newLen, oldLen) => {
     nextTick(() => {
-      // 有新 assistant 消息时播放回复音效
+      // 有新 assistant 消息
       if (newLen > (oldLen ?? 0) && chatHistory[chatHistory.length - 1]?.role === "assistant") {
-        playEventSound("reply");
+        const isFirst = (oldLen ?? 0) === 0;
+        // 启动欢迎消息不播放回复音（只放启动音）
+        if (!isFirst) playEventSound("reply");
+        // 系统通知 + 自动弹出
+        if (notificationConfig.enabled) {
+          import("@/services/window/listener").then(m => {
+            m.sendToastNotification(chatHistory[chatHistory.length - 1].text);
+          });
+        }
+        // 自动弹出窗口（收到新消息时）
+        if (!isFirst && userConfig.autoPopupOnMessage) {
+          emit("request-popup");
+        }
       }
       if (isAtBottom.value) {
         scrollToBottom();
@@ -115,6 +131,11 @@ function onThumbUp() {
   document.removeEventListener("mouseup", onThumbUp);
 }
 
+// ── IME 输入法状态追踪 ──
+const composing = ref(false);
+function onCompositionStart() { composing.value = true; }
+function onCompositionEnd() { composing.value = false; }
+
 // ==========================================
 // 发送消息
 // ==========================================
@@ -128,6 +149,8 @@ async function send() {
   scrollToBottom();
 }
 function key(e: KeyboardEvent) {
+  // IME 输入中（composition）不触发发送
+  if (composing.value || e.isComposing || e.keyCode === 229) return;
   if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
 }
 
@@ -177,7 +200,7 @@ onMounted(() => {
     </div>
 
     <div id="ch-foot">
-      <input ref="inputRef" v-model="input" placeholder="消息..." @keydown="key" />
+      <textarea ref="inputRef" v-model="input" placeholder="消息..." @keydown="key" @compositionstart="onCompositionStart" @compositionend="onCompositionEnd" rows="1" />
       <button @click="send" :disabled="!input.trim()">发送</button>
     </div>
   </div>
@@ -302,20 +325,21 @@ onMounted(() => {
   border-top: 1px solid #5a3050;
   flex-shrink: 0;
 }
-#ch-foot input {
+#ch-foot textarea {
   flex: 1;
   min-width: 0;
   background: #3e1a2e;
   border: 1px solid #6a4060;
-  border-radius: 16px;
+  border-radius: 12px;
   padding: 5px 10px;
   color: #f0e0f0;
   font-size: clamp(9px, 2.2vw, 13px);
   font-family: inherit;
   outline: none;
+  resize: none;
 }
-#ch-foot input:focus { border-color: #c4276f; }
-#ch-foot input::placeholder { color: #8a6080; }
+#ch-foot textarea:focus { border-color: #c4276f; }
+#ch-foot textarea::placeholder { color: #8a6080; }
 #ch-foot button {
   padding: 5px 12px;
   background: #c4276f;

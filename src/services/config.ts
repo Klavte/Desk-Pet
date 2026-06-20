@@ -42,10 +42,7 @@ interface Config {
   memory: {
     maxEntries: number;
   };
-  notification: {
-    enabled: boolean;
-    autoCloseMs: number;
-  };
+  // notification 配置段已从 YAML 移除（macOS 系统通知无法实现）
   desktop: {
     pollingIntervalMs: number;
     pauseExtraMs: number;
@@ -233,11 +230,12 @@ export const memoryConfig = {
 };
 
 // ==========================================
-// 通知弹窗配置
+// 通知弹窗配置（已移除 — macOS 系统通知无法实现）
+// 保留空壳避免引用报错，始终返回 false/0
 // ==========================================
 export const notificationConfig = {
-  get enabled() { return overrideOr("notification.enabled", cfg.notification.enabled ?? true); },
-  get autoCloseMs() { return overrideOr("notification.autoCloseMs", cfg.notification.autoCloseMs || 8000); },
+  get enabled() { return false; },
+  get autoCloseMs() { return 8000; },
 };
 
 // ==========================================

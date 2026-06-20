@@ -4,7 +4,7 @@ import { WebviewWindow, getCurrentWebviewWindow } from "@tauri-apps/api/webviewW
 import { LogicalSize } from "@tauri-apps/api/dpi";
 import {
   userConfig, aiConfig, windowMonitorConfig, aiLockConfig,
-  memoryConfig, notificationConfig, desktopConfig, loggingConfig,
+  memoryConfig, desktopConfig, loggingConfig,
   setOverrides, clearOverrides,
 } from "@/services/config";
 import {
@@ -66,10 +66,6 @@ const lockTimeout = ref(aiLockConfig.safetyTimeoutMs);
 
 // ── 记忆 ──
 const memMax = ref(memoryConfig.maxEntries);
-
-// ── 通知 ──
-const notifEnabled = ref(notificationConfig.enabled);
-const notifClose = ref(notificationConfig.autoCloseMs);
 
 // ── 桌面 ──
 const deskPoll = ref(desktopConfig.pollingIntervalMs);
@@ -168,8 +164,6 @@ async function doSave() {
     "windowMonitor.samePageCooldownSeconds": wmSamePageCool.value,
     "aiLock.safetyTimeoutMs": lockTimeout.value,
     "memory.maxEntries": memMax.value,
-    "notification.autoCloseMs": notifClose.value,
-    "notification.enabled": notifEnabled.value,
     "desktop.pollingIntervalMs": deskPoll.value,
     "desktop.pauseExtraMs": deskPause.value,
     "desktop.waitTimeoutMs": deskWait.value,
@@ -272,20 +266,14 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- AI 并发锁 + 记忆 + 通知 -->
+      <!-- AI 并发锁 + 记忆 -->
       <div class="s-section">
-        <div class="s-label">🔒 AI 锁 / 记忆 / 通知 <span class="s-tag">即时生效</span></div>
+        <div class="s-label">🔒 AI 锁 / 记忆 <span class="s-tag">即时生效</span></div>
         <div class="s-field-inline">
           <label>锁超时 <input class="s-input-num" type="number" v-model.number="lockTimeout" /> ms</label>
           <label>记忆上限 <input class="s-input-num" type="number" v-model.number="memMax" /> 条</label>
-          <label>通知关闭 <input class="s-input-num" type="number" v-model.number="notifClose" /> ms</label>
         </div>
-        <div class="s-field-inline" style="margin-top:4px">
-          <label class="radio-item">
-            <input type="checkbox" v-model="notifEnabled" />
-            <span>启用系统通知（跨屏/最小化时弹窗提醒）</span>
-          </label>
-        </div>
+        <!-- 系统通知: 已移除（macOS 无法实现，Tauri 未签名构建下 osascript 不可用） -->
       </div>
 
       <!-- 桌面后端 -->

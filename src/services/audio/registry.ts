@@ -8,15 +8,25 @@ import { getBoundaryLevel } from "./boundary";
 
 // ── 共享 AudioContext ──
 let sharedCtx: AudioContext | null = null;
+let ctxResumePromise: Promise<void> | null = null;
 
-function getCtx(): AudioContext | null {
+/** 异步获取已就绪的 AudioContext（确保 resume 完成后再返回） */
+async function getCtx(): Promise<AudioContext | null> {
   if (sharedCtx && sharedCtx.state !== "closed") {
-    if (sharedCtx.state === "suspended") { sharedCtx.resume().catch(() => {}); }
+    if (sharedCtx.state === "suspended") {
+      if (!ctxResumePromise) ctxResumePromise = sharedCtx.resume().then(() => {}).catch(() => {});
+      await ctxResumePromise;
+      ctxResumePromise = null;
+    }
     return sharedCtx;
   }
   try {
     sharedCtx = new AudioContext();
-    if (sharedCtx.state === "suspended") { sharedCtx.resume().catch(() => {}); }
+    if (sharedCtx.state === "suspended") {
+      ctxResumePromise = sharedCtx.resume().then(() => {}).catch(() => {});
+      await ctxResumePromise;
+      ctxResumePromise = null;
+    }
     return sharedCtx;
   } catch { return null; }
 }
@@ -25,7 +35,7 @@ function getCtx(): AudioContext | null {
 export interface SoundDef {
   id: string;
   name: string;
-  play: () => void;
+  play: () => Promise<void>;
 }
 
 // ── 音效库（所有可用音效）──
@@ -34,15 +44,15 @@ const soundLibrary: SoundDef[] = [
   {
     id: "none",
     name: "关闭",
-    play: () => {},
+    play: async () => {},
   },
 
   // ── 弹出音效：轻快双音上行 ──
   {
     id: "popup_up",
     name: "轻快上行",
-    play: () => {
-      const ctx = getCtx();
+    play: async () => {
+      const ctx = await getCtx();
       if (!ctx) return;
       try {
         const osc1 = ctx.createOscillator();
@@ -70,8 +80,8 @@ const soundLibrary: SoundDef[] = [
   {
     id: "retract_down",
     name: "温柔下行",
-    play: () => {
-      const ctx = getCtx();
+    play: async () => {
+      const ctx = await getCtx();
       if (!ctx) return;
       try {
         const osc1 = ctx.createOscillator();
@@ -99,8 +109,8 @@ const soundLibrary: SoundDef[] = [
   {
     id: "welcome_chord",
     name: "温暖和弦",
-    play: () => {
-      const ctx = getCtx();
+    play: async () => {
+      const ctx = await getCtx();
       if (!ctx) return;
       try {
         const notes = [523, 659, 784, 1047]; // C5 E5 G5 C6
@@ -123,8 +133,8 @@ const soundLibrary: SoundDef[] = [
   {
     id: "send_short",
     name: "短促上行",
-    play: () => {
-      const ctx = getCtx();
+    play: async () => {
+      const ctx = await getCtx();
       if (!ctx) return;
       try {
         const osc = ctx.createOscillator();
@@ -144,8 +154,8 @@ const soundLibrary: SoundDef[] = [
   {
     id: "reply_ding",
     name: "柔和叮咚",
-    play: () => {
-      const ctx = getCtx();
+    play: async () => {
+      const ctx = await getCtx();
       if (!ctx) return;
       try {
         const osc1 = ctx.createOscillator();
@@ -170,8 +180,8 @@ const soundLibrary: SoundDef[] = [
   {
     id: "surface_light",
     name: "轻快提示",
-    play: () => {
-      const ctx = getCtx();
+    play: async () => {
+      const ctx = await getCtx();
       if (!ctx) return;
       try {
         const osc1 = ctx.createOscillator();
@@ -195,8 +205,8 @@ const soundLibrary: SoundDef[] = [
   {
     id: "middle_tremolo",
     name: "轻微颤音",
-    play: () => {
-      const ctx = getCtx();
+    play: async () => {
+      const ctx = await getCtx();
       if (!ctx) return;
       try {
         const osc = ctx.createOscillator();
@@ -222,8 +232,8 @@ const soundLibrary: SoundDef[] = [
   {
     id: "deep_noise",
     name: "紊乱噪音",
-    play: () => {
-      const ctx = getCtx();
+    play: async () => {
+      const ctx = await getCtx();
       if (!ctx) return;
       try {
         const osc = ctx.createOscillator();
@@ -266,8 +276,8 @@ const soundLibrary: SoundDef[] = [
   {
     id: "pop_short",
     name: "电子弹跳",
-    play: () => {
-      const ctx = getCtx();
+    play: async () => {
+      const ctx = await getCtx();
       if (!ctx) return;
       try {
         const osc = ctx.createOscillator();
@@ -287,8 +297,8 @@ const soundLibrary: SoundDef[] = [
   {
     id: "drop_short",
     name: "水滴",
-    play: () => {
-      const ctx = getCtx();
+    play: async () => {
+      const ctx = await getCtx();
       if (!ctx) return;
       try {
         const osc = ctx.createOscillator();
@@ -308,8 +318,8 @@ const soundLibrary: SoundDef[] = [
   {
     id: "chime_short",
     name: "风铃",
-    play: () => {
-      const ctx = getCtx();
+    play: async () => {
+      const ctx = await getCtx();
       if (!ctx) return;
       try {
         const osc1 = ctx.createOscillator();
@@ -331,8 +341,8 @@ const soundLibrary: SoundDef[] = [
   {
     id: "tick_short",
     name: "咔哒",
-    play: () => {
-      const ctx = getCtx();
+    play: async () => {
+      const ctx = await getCtx();
       if (!ctx) return;
       try {
         const osc = ctx.createOscillator();
@@ -356,8 +366,8 @@ const soundLibrary: SoundDef[] = [
   {
     id: "arpeggio_mid",
     name: "琶音上行",
-    play: () => {
-      const ctx = getCtx();
+    play: async () => {
+      const ctx = await getCtx();
       if (!ctx) return;
       try {
         const notes = [659, 784, 1047, 1319]; // E5 G5 C6 E6
@@ -380,8 +390,8 @@ const soundLibrary: SoundDef[] = [
   {
     id: "wave_mid",
     name: "柔波",
-    play: () => {
-      const ctx = getCtx();
+    play: async () => {
+      const ctx = await getCtx();
       if (!ctx) return;
       try {
         const osc = ctx.createOscillator();
@@ -408,8 +418,8 @@ const soundLibrary: SoundDef[] = [
   {
     id: "sparkle_mid",
     name: "星尘",
-    play: () => {
-      const ctx = getCtx();
+    play: async () => {
+      const ctx = await getCtx();
       if (!ctx) return;
       try {
         const baseFreqs = [2000, 2800, 3600, 4400, 5200];
@@ -432,8 +442,8 @@ const soundLibrary: SoundDef[] = [
   {
     id: "resonance_mid",
     name: "共鸣",
-    play: () => {
-      const ctx = getCtx();
+    play: async () => {
+      const ctx = await getCtx();
       if (!ctx) return;
       try {
         const harmonics = [523, 784, 1047, 1319, 1568]; // C5 G5 C6 E6 G6
@@ -459,8 +469,8 @@ const soundLibrary: SoundDef[] = [
   {
     id: "wind_long",
     name: "风潮",
-    play: () => {
-      const ctx = getCtx();
+    play: async () => {
+      const ctx = await getCtx();
       if (!ctx) return;
       try {
         const notes = [262, 330, 392, 523]; // C4 E4 G4 C5
@@ -485,8 +495,8 @@ const soundLibrary: SoundDef[] = [
   {
     id: "crystal_long",
     name: "水晶",
-    play: () => {
-      const ctx = getCtx();
+    play: async () => {
+      const ctx = await getCtx();
       if (!ctx) return;
       try {
         const notes = [1047, 1319, 1568, 1760, 2093, 2637]; // C6 E6 G6 A6 C7 E7
@@ -510,8 +520,8 @@ const soundLibrary: SoundDef[] = [
   {
     id: "warm_long",
     name: "暖阳",
-    play: () => {
-      const ctx = getCtx();
+    play: async () => {
+      const ctx = await getCtx();
       if (!ctx) return;
       try {
         const osc = ctx.createOscillator();
@@ -540,8 +550,8 @@ const soundLibrary: SoundDef[] = [
   {
     id: "bell_long",
     name: "余韵",
-    play: () => {
-      const ctx = getCtx();
+    play: async () => {
+      const ctx = await getCtx();
       if (!ctx) return;
       try {
         const partials = [
@@ -574,8 +584,8 @@ const soundLibrary: SoundDef[] = [
   {
     id: "horror_stab",
     name: "惊悚短音",
-    play: () => {
-      const ctx = getCtx();
+    play: async () => {
+      const ctx = await getCtx();
       if (!ctx) return;
       try {
         const osc1 = ctx.createOscillator();
@@ -600,8 +610,8 @@ const soundLibrary: SoundDef[] = [
   {
     id: "heartbeat",
     name: "心跳",
-    play: () => {
-      const ctx = getCtx();
+    play: async () => {
+      const ctx = await getCtx();
       if (!ctx) return;
       try {
         [0, 0.18].forEach((offset) => {
@@ -623,8 +633,8 @@ const soundLibrary: SoundDef[] = [
   {
     id: "dread_rise",
     name: "渐近恐惧",
-    play: () => {
-      const ctx = getCtx();
+    play: async () => {
+      const ctx = await getCtx();
       if (!ctx) return;
       try {
         // 半音上升序列
@@ -661,8 +671,8 @@ const soundLibrary: SoundDef[] = [
   {
     id: "ghost_whisper",
     name: "鬼魅低语",
-    play: () => {
-      const ctx = getCtx();
+    play: async () => {
+      const ctx = await getCtx();
       if (!ctx) return;
       try {
         // 基音+泛音，缓慢LFO调制
@@ -713,8 +723,8 @@ const soundLibrary: SoundDef[] = [
   {
     id: "cosmic_float",
     name: "宇宙飘浮",
-    play: () => {
-      const ctx = getCtx();
+    play: async () => {
+      const ctx = await getCtx();
       if (!ctx) return;
       try {
         // 主音缓慢飘移
@@ -752,8 +762,8 @@ const soundLibrary: SoundDef[] = [
   {
     id: "pulse_rhythm",
     name: "脉冲",
-    play: () => {
-      const ctx = getCtx();
+    play: async () => {
+      const ctx = await getCtx();
       if (!ctx) return;
       try {
         // 低音脉冲序列
@@ -788,8 +798,8 @@ const soundLibrary: SoundDef[] = [
   {
     id: "raindrop",
     name: "雨滴",
-    play: () => {
-      const ctx = getCtx();
+    play: async () => {
+      const ctx = await getCtx();
       if (!ctx) return;
       try {
         const drops = [
@@ -828,8 +838,8 @@ const soundLibrary: SoundDef[] = [
   {
     id: "music_box",
     name: "八音盒",
-    play: () => {
-      const ctx = getCtx();
+    play: async () => {
+      const ctx = await getCtx();
       if (!ctx) return;
       try {
         // 旋律片段: C6 D6 E6 G6 E6 D6 C6 A5
@@ -868,8 +878,8 @@ const soundLibrary: SoundDef[] = [
   {
     id: "ping_low",
     name: "金铎",
-    play: () => {
-      const ctx = getCtx();
+    play: async () => {
+      const ctx = await getCtx();
       if (!ctx) return;
       try {
         const partials = [
@@ -899,8 +909,8 @@ const soundLibrary: SoundDef[] = [
   {
     id: "ping_mid",
     name: "银铃",
-    play: () => {
-      const ctx = getCtx();
+    play: async () => {
+      const ctx = await getCtx();
       if (!ctx) return;
       try {
         const partials = [
@@ -932,8 +942,8 @@ const soundLibrary: SoundDef[] = [
   {
     id: "ping_crisp",
     name: "玉磬",
-    play: () => {
-      const ctx = getCtx();
+    play: async () => {
+      const ctx = await getCtx();
       if (!ctx) return;
       try {
         const partials = [
@@ -963,8 +973,8 @@ const soundLibrary: SoundDef[] = [
   {
     id: "ping_high",
     name: "铜磬",
-    play: () => {
-      const ctx = getCtx();
+    play: async () => {
+      const ctx = await getCtx();
       if (!ctx) return;
       try {
         const partials = [
@@ -1062,17 +1072,17 @@ export function saveSoundAssignments(assignments: Record<string, string>): void 
 // ── 统一播放入口 ──
 
 /** 播放指定事件的音效（按用户分配，回退默认） */
-export function playEventSound(eventKey: string): void {
+export async function playEventSound(eventKey: string): Promise<void> {
   const assignments = loadAssignments();
   const soundId = assignments[eventKey] || eventDefaults[eventKey] || "none";
   if (soundId === "none") return;
-  getSoundById(soundId)?.play();
+  await getSoundById(soundId)?.play();
 }
 
 /** 人格界限联动提示音（根据当前界限自动选择表/中/深层音效） */
-export function playNotificationByBoundary(): void {
+export async function playNotificationByBoundary(): Promise<void> {
   const level = getBoundaryLevel();
-  if (level <= 3) playEventSound("surface");
-  else if (level === 4) playEventSound("middle");
-  else playEventSound("deep");
+  if (level <= 3) await playEventSound("surface");
+  else if (level === 4) await playEventSound("middle");
+  else await playEventSound("deep");
 }

@@ -2,7 +2,7 @@
 import { ref, nextTick, onMounted, watch } from "vue";
 import { chatHistory, sendMessage } from "@/services/ai";
 import { playEventSound } from "@/services/audio/registry";
-import { notificationConfig, userConfig } from "@/services/config";
+import { userConfig } from "@/services/config";
 import { createLogger } from "@/services/logger";
 
 const log = createLogger("ChatPanel");
@@ -55,12 +55,7 @@ watch(
         const isFirst = (oldLen ?? 0) === 0;
         // 启动欢迎消息不播放回复音（只放启动音）
         if (!isFirst) playEventSound("reply");
-        // 系统通知 + 自动弹出
-        if (notificationConfig.enabled) {
-          import("@/services/window/listener").then(m => {
-            m.sendToastNotification(chatHistory[chatHistory.length - 1].text);
-          });
-        }
+        // 系统通知: 已禁用（macOS 无法实现，见 listener.ts 注释）
         // 自动弹出窗口（收到新消息时）
         if (!isFirst && userConfig.autoPopupOnMessage) {
           emit("request-popup");

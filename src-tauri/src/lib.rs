@@ -19,8 +19,6 @@ use crate::commands::{
     open_windows_sim, close_windows_sim,
     log_message, focus_main,
 };
-#[allow(unused_imports)]
-use crate::commands::send_osx_notification;
 
 // ==========================================
 // 启动入口
@@ -106,7 +104,6 @@ pub fn run() {
             close_windows_sim,
             log_message,
             focus_main,
-            send_osx_notification,
             enhance_settings_window,
         ])
         .run(tauri::generate_context!())

@@ -49,10 +49,9 @@ aiLock:
 memory:
   maxEntries: 200 # 最大记忆条数
 
-# ── 通知弹窗 ──
-notification:
-  enabled: true # 是否启用系统通知弹窗
-  autoCloseMs: 8000 # 自动关闭延迟（毫秒）
+# ── 系统通知（已移除）──
+# macOS 未签名构建下无法实现，代码中留有注释占位。
+# 若后续有新方案可重新启用。
 
 # ── 桌面后端（Rust 轮询）──
 desktop:

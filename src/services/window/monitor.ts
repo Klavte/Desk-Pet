@@ -51,6 +51,11 @@ export function checkWindowTiming(title: string): boolean {
 }
 
 export function processTrigger(result: TriggerResult): void {
+  // 触发后重置停留计时 + 当前窗口标题，防止冷却结束立即再次触发同一页面
+  // reset currentWindowTitle → 同标题会走 settle 流程重新计时
+  stayStartTime = Date.now();
+  currentWindowTitle = "";
+  pendingTitle = "";
   triggerCooldown();
   const s = getCooldownSeconds();
   const resumeExtraMs = windowMonitorConfig.resumeExtraMs;

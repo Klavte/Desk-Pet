@@ -35,6 +35,7 @@ import { OpenAICompatibleProvider } from "./provider";
 import { AIService } from "./service";
 import { CharacterService } from "./character";
 import { chatHistory, pushUserMessage, pushAssistantMessage, getContextMessages, initWelcome, resetUnanswered } from "./chat";
+import { isAIGenerating, setAIGenerating } from "@/services/cooldown";
 import { createLogger } from "@/services/logger";
 
 const log = createLogger("Chat");
@@ -52,13 +53,28 @@ export async function initChat(welcomeText?: string): Promise<void> {
 }
 
 export async function sendMessage(text: string): Promise<string> {
+  // 并发锁：避免与窗口监控的 generateActiveMessage 同时请求 AI
+  if (isAIGenerating()) {
+    log.warn("AI 生成中，拒绝用户消息并发请求");
+    return "（糖糖正在想事情，等一下再发哦～）";
+  }
   pushUserMessage(text);
   resetUnanswered();
-  const context = getContextMessages();
-  const systemPrompt = getSystemPrompt();
-  const reply = await getAIService().generateReply(context, systemPrompt, text);
-  pushAssistantMessage(reply);
-  return reply;
+  setAIGenerating(true);
+  try {
+    const context = getContextMessages();
+    const systemPrompt = getSystemPrompt();
+    const reply = await getAIService().generateReply(context, systemPrompt, text);
+    pushAssistantMessage(reply);
+    return reply;
+  } catch (e) {
+    log.error("sendMessage 失败", e instanceof Error ? e : undefined);
+    const fallback = "（唔…信号不太好，等会儿再试试？）";
+    pushAssistantMessage(fallback);
+    return fallback;
+  } finally {
+    setAIGenerating(false);
+  }
 }
 
 if (import.meta.hot) {

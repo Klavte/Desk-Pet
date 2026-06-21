@@ -27,6 +27,11 @@ interface Config {
     defaultSystemPrompt: string;
     fallbackReplies: string[];
   };
+  personality: {
+    enabled: boolean;
+    active: string;
+    cards: { id: string; name: string; path: string; description: string }[];
+  };
   windowMonitor: {
     enabled: boolean;
     staySeconds: number;
@@ -42,7 +47,6 @@ interface Config {
   memory: {
     maxEntries: number;
   };
-  // notification 配置段已从 YAML 移除（macOS 系统通知无法实现）
   desktop: {
     pollingIntervalMs: number;
     pauseExtraMs: number;
@@ -263,6 +267,15 @@ export const loggingConfig = {
   get level(): "debug" | "info" | "warn" | "error" {
     return overrideOr("logging.level", cfg.logging?.level || (import.meta.env.DEV ? "debug" : "info"));
   },
+};
+
+// ==========================================
+// 人格配置
+// ==========================================
+export const personalityConfig = {
+  get enabled() { return overrideOr("personality.enabled", cfg.personality?.enabled ?? true); },
+  get active() { return overrideOr("personality.active", cfg.personality?.active || ""); },
+  get cards() { return overrideOr("personality.cards", cfg.personality?.cards || []); },
 };
 
 // ==========================================

@@ -1,6 +1,6 @@
 ﻿<script setup lang="ts">
 import { ref, nextTick, onMounted, watch } from "vue";
-import { chatHistory, sendMessage } from "@/services/ai";
+import { chatHistory, sendMessage } from "@/services/agent";
 import { playEventSound } from "@/services/audio/registry";
 import { userConfig } from "@/services/config";
 import { createLogger } from "@/services/logger";

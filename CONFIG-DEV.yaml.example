@@ -31,6 +31,24 @@ ai:
     - "你这么说我好开心～"
     - "欸——这样啊，好有趣！"
 
+# ── 人格系统 ──
+personality:
+  enabled: true                # 是否启用人格系统（false=使用默认人格）
+  active: "angelkawaii"        # 当前激活的人格 ID（空字符串=不使用任何人格卡）
+  cards:                       # 可用人格卡列表
+    - id: angelkawaii
+      name: KAngel
+      path: cards/angelkawaii.md
+      description: 甜蜜活泼女友 + 深层病娇
+    - id: ame
+      name: Ame
+      path: cards/ame.md
+      description: 冷静严肃管家型 AI
+    - id: pchan
+      name: P酱
+      path: cards/pchan.md
+      description: 慵懒电竞少女
+
 # ── 窗口监控 ──
 windowMonitor:
   enabled: true

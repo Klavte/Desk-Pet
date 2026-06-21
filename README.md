@@ -2,7 +2,7 @@
 
 > 像素风桌面虚拟主播 — 常驻桌面，能聊天、能看你窗口、能主动搭话。
 >
-> ⚠️ **当前状态：早期开发框架**（v0.8.x）。核心流程已跑通，但大量功能尚待完善。
+> ⚠️ **当前状态：早期开发框架**（v0.9.x）。核心流程已跑通，Agent 内核 + 人格层解耦完成。
 
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-blue)](https://github.com/Klavte/Desk-Pet)
 [![Tauri](https://img.shields.io/badge/Tauri-v2-ffc131)](https://tauri.app)
@@ -17,9 +17,10 @@
 - **AI 聊天** — 人格卡驱动，兼容 OpenAI / DeepSeek / Ollama 等
 - **窗口感知** — 监控前台窗口标题，停留一定时间后 AI 主动搭话
 - **快捷键召唤** — 全局快捷键弹出/收回，缩放动画
+- **人格系统** — 独立人格模块，支持热插拔切换/开关，在设置面板配置
 - **人格进化** — 不理她太久会从甜蜜女友逐渐变成病娇（unansweredCount + boundary 系统）
 - **音效系统** — 29 个内置音效，Web Audio 合成无需外部文件
-- **设置面板** — 独立窗口，AI / 监控 / 弹窗 / 快捷键 / 音效可配置
+- **设置面板** — 独立窗口，AI / 监控 / 人格 / 弹窗 / 快捷键 / 音效可配置
 - **Windows 模拟器** — 彩蛋：像素风 Win7 桌面（输入 `open win` 触发）
 - **系统托盘** — 关闭隐藏到托盘，单击恢复
 
@@ -30,8 +31,8 @@
 | 项目 | 状态 | 说明 |
 |------|------|------|
 | 系统通知 | ❌ 已移除 | macOS 未签名构建下无法实现（tauri-plugin 需签名，osascript 沙箱受限），留有注释占位 |
-| 自动弹出 | ⚠️ 基础可用 | 收到消息自动弹出逻辑已实现，但偶有 DPI/坐标不一致问题 |
-| 多角色切换 | ⚠️ 骨架 | 人格卡文件已准备，切换入口待做 |
+| Agent Loop 内核 | ⚠️ 占位 | Agent 模块已拆分，loop 调度器待搭建 |
+| 回复生成器 | ⚠️ 待开发 | 用于与人格模块一起构建回复 |
 | 窗口感知精度 | ⚠️ 基础可用 | macOS 依赖 osascript 取前台 app 名，无法获取浏览器标签页标题 |
 | 长期记忆 | ⚠️ 骨架 | localStorage 存取逻辑已有，未接入 AI prompt |
 | 角色动画 | ⚠️ 基础 | 序列帧播放 + 关键词触发表情切换，缺少更多动画资源 |
@@ -84,9 +85,22 @@ Desk-Pet/
 │   │   ├── SettingsPanel.vue
 │   │   └── winsim/          # 模拟器彩蛋
 │   └── services/
-│       ├── ai/              # AI 模块（provider / chat / character / memory）
-│       ├── window/          # 窗口监控（listener / monitor / active-context）
-│       ├── audio/           # 音效注册中心 + 人格界限
+│       ├── personality/     # 人格模块（独立 - 只影响 Prompt 生成）
+│       │   ├── cards/       # 人格卡 (.md) — 统一模板
+│       │   ├── loader.ts    # Vite ?raw 构建时嵌入
+│       │   ├── registry.ts  # 人格注册表（切换/开关）
+│       │   ├── boundary.ts  # 人格界限系统
+│       │   └── types.ts
+│       ├── agent/           # Agent 内核模块
+│       │   ├── runner.ts    # sendMessage / initChat 入口
+│       │   ├── provider.ts  # OpenAI 兼容 Provider
+│       │   ├── service.ts   # AI 调用封装
+│       │   ├── chat.ts      # 聊天记录 + 未回复追踪
+│       │   ├── memory.ts    # 长期记忆
+│       │   ├── active.ts    # 窗口监控 → 主动搭话
+│       │   └── types.ts
+│       ├── window/          # 窗口监控（listener / monitor）
+│       ├── audio/           # 音效注册中心 + 界限联动
 │       ├── config.ts        # 配置加载器（YAML → 类型化 getter）
 │       ├── cooldown.ts      # 全局冷却 + AI 并发锁
 │       └── ...
@@ -122,7 +136,8 @@ Desk-Pet/
 
 | 类别 | 配置项 | 生效 |
 |------|--------|------|
-| AI 接口 | 端点/密钥/模型/上下文/人格 | 即时 |
+| AI 接口 | 端点/密钥/模型/上下文/默认人格 | 即时 |
+| 人格切换 | 启用人格系统 / 选择人格卡（热插拔） | 即时 |
 | 窗口监控 | 开关/停留秒数/防抖/冷却 | 即时 |
 | 弹窗 | 位置模式/大小/自动弹出 | 即时 |
 | 快捷键 | 录制自定义组合键 | 即时 |
@@ -143,7 +158,7 @@ Desk-Pet/
 | 全局快捷键 | ✅ | global-shortcut 插件 |
 | 桌面悬浮 | ✅ | canJoinAllSpaces + fullScreenAux |
 | 输入框聚焦 | ✅ | 弹出后可直接打字 |
-| Windows 平台 | ❌ 未测 | 有 cfg 守卫但未实机验证 |
+| 人格热插拔 | ✅ | 设置面板即时切换 |
 
 ---
 

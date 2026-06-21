@@ -4,7 +4,7 @@ import { WebviewWindow, getCurrentWebviewWindow } from "@tauri-apps/api/webviewW
 import { LogicalSize } from "@tauri-apps/api/dpi";
 import {
   userConfig, aiConfig, windowMonitorConfig, aiLockConfig,
-  memoryConfig, desktopConfig, loggingConfig,
+  memoryConfig, desktopConfig, loggingConfig, personalityConfig,
   setOverrides, clearOverrides,
 } from "@/services/config";
 import {
@@ -12,6 +12,7 @@ import {
   soundEvents,
   type SoundDef,
 } from "@/services/audio/registry";
+import { listPersonalities, switchPersonality, setPersonalityEnabled } from "@/services/personality";
 import { createLogger } from "@/services/logger";
 import { isMacOS } from "@/services/env";
 import { listen } from "@tauri-apps/api/event";
@@ -74,6 +75,11 @@ const deskWait = ref(desktopConfig.waitTimeoutMs);
 
 // ── 日志 ──
 const logLevel = ref(loggingConfig.level);
+
+// ── 人格 ──
+const personalityEnabled = ref(personalityConfig.enabled);
+const personalityActive = ref(personalityConfig.active);
+const availablePersonalities = ref(listPersonalities());
 
 // ── 用户设置 ──
 const popupMode = ref(userConfig.popupMode);
@@ -157,6 +163,8 @@ async function doSave() {
     "ai.model": aiModel.value,
     "ai.maxContextMessages": aiMaxContext.value,
     "ai.defaultSystemPrompt": aiSystemPrompt.value,
+    "personality.enabled": personalityEnabled.value,
+    "personality.active": personalityActive.value,
     "windowMonitor.enabled": wmEnabled.value,
     "windowMonitor.staySeconds": wmStaySeconds.value,
     "windowMonitor.settleMs": wmSettleMs.value,
@@ -169,6 +177,10 @@ async function doSave() {
     "desktop.waitTimeoutMs": deskWait.value,
     "logging.level": logLevel.value,
   });
+
+  // 人格配置即时生效
+  setPersonalityEnabled(personalityEnabled.value);
+  switchPersonality(personalityEnabled.value ? personalityActive.value : null);
 
   saved.value = true;
   log.info("设置已保存（所有配置即时生效）");
@@ -244,6 +256,26 @@ onUnmounted(() => {
         <div class="s-field-col">
           <span class="s-fname">默认人格</span>
           <textarea class="s-input s-textarea" v-model="aiSystemPrompt" rows="2"></textarea>
+        </div>
+      </div>
+
+      <!-- 人格选择 -->
+      <div class="s-section">
+        <div class="s-label">🎭 人格切换 <span class="s-tag">即时生效</span></div>
+        <div class="s-field-inline" style="margin-bottom:6px">
+          <label class="radio-item">
+            <input type="checkbox" v-model="personalityEnabled" />
+            <span>启用人格系统（关闭则使用默认人格）</span>
+          </label>
+        </div>
+        <div v-if="personalityEnabled" class="radio-group">
+          <label v-for="p in availablePersonalities" :key="p.id" class="radio-item">
+            <input type="radio" v-model="personalityActive" :value="p.id" />
+            <span>{{ p.name }} <span class="s-hint" style="display:inline">— {{ p.description }}</span></span>
+          </label>
+        </div>
+        <div v-else class="s-hint">
+          人格系统已关闭，所有回复使用上方"默认人格"设定
         </div>
       </div>
 

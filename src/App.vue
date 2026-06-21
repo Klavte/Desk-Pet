@@ -13,7 +13,8 @@ import ChatPanel from "./components/ChatPanel.vue";
 import WinSim from "./components/winsim/WinSim.vue";
 import { handleCommand } from "./services/command-handler";
 import { initWindowListener } from "./services/window";
-import { initChat } from "@/services/ai";
+import { initChat } from "@/services/agent";
+import { initRegistry } from "@/services/personality";
 import { desktopConfig, shortcutConfig, userConfig, refreshUserCache } from "@/services/config";
 import { isMacOS } from "@/services/env";
 import { createLogger } from "@/services/logger";
@@ -363,6 +364,9 @@ onMounted(async () => {
     await win.setPosition(new LogicalPosition(fp.x, fp.y));
     lastMovedPos.value = { x: fp.x, y: fp.y };
   }
+
+  // 初始化人格模块
+  initRegistry();
 
   invoke("set_monitor_config", {
     pollingIntervalMs: desktopConfig.pollingIntervalMs,

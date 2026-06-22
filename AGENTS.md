@@ -1,4 +1,4 @@
-# AGENTS.md
+﻿# AGENTS.md
 
 > 糖糖桌宠 (Desk Pet) — Tauri v2 桌面虚拟主播助手
 
@@ -12,7 +12,7 @@
 - **前端包管理**: pnpm
 - **AI 后端**: 统一 OpenAI 兼容 Provider (DeepSeek / OpenAI / Ollama / LM Studio)
 - **YAML 解析**: js-yaml (devDependency, Vite 插件编译时转换)
-- **目标平台**: Windows（主开发平台）+ macOS（同步适配平台）
+- **目标平台**: Windows + macOS
 
 ---
 
@@ -32,80 +32,72 @@ cd src-tauri && cargo check   # Rust 编译检查
 
 ```
 Desk-Pet/
-├── CONFIG.yaml                  # 全局默认配置
-├── CONFIG-DEV.yaml              # 本地开发配置 (不入 git)
-├── DES.md                       # 设计文档
-├── 架构方案.md                   # v2 架构方案
-├── .gitignore
+├── CONFIG.yaml                  # 全局默认配置 (AI / 人格 / 窗口 / 锁 / 记忆 / 桌面 / 快捷键 / 用户 / 日志)
+├── CONFIG-DEV.yaml              # 本地开发配置 (不入 git, enabled: true 替换 CONFIG)
+├── DES.md                       # 设计文档 (玩法/机制/交互说明)
+├── .gitignore                   # CONFIG-DEV.yaml 已忽略
 ├── index.html / notification.html / settings.html
 ├── vite.config.ts               # Vite + YAML 插件 + @ 别名
 ├── package.json / pnpm-lock.yaml
 │
-├── memory/                      # ★ 长期记忆（文件注册表）
-│   ├── MEMORY.md                # ★ 长期记忆索引 → 指向各 .md 文件或独立条目
-│   ├── SESSION_MEMORY.md        # 当前会话工作记忆
-│   ├── CANDY.md                 # 用户系统指令
-│   ├── User.md                  # 用户画像 (imp≥7 自动同步)
-│   ├── Outside.md               # 外部知识指针
-│   └── Project.md               # ★ 会话归档指针 → sessions/
-│
-├── sessions/                    # ★ 历史会话归档
-│   └── session-YYYY-MM-DD-HH-mm-ss.md
-│
-├── skills/                      # ★ Skill 文件目录 (Phase 4)
-│
 ├── src/                         # Vue 前端
 │   ├── main.ts / notification-main.ts / settings-main.ts / App.vue
 │   ├── components/              # UI 组件
-│   │   ├── TitleBar.vue / StreamView.vue / ChatPanel.vue / SessionTabs.vue / SettingsPanel.vue / NotificationCard.vue
-│   │   ├── DebugBar.vue          # Debug 状态栏（嵌入 ChatPanel 底部）
+│   │   ├── TitleBar.vue / StreamView.vue / ChatPanel.vue / SettingsPanel.vue / NotificationCard.vue
 │   │   └── winsim/              # Windows 模拟器彩蛋
 │   ├── services/
-│   │   ├── engine/              # ★ 核心引擎 (Phase 2)
+│   │   ├── personality/         # ★ 人格模块（独立 — 只影响 Prompt 生成）
 │   │   │   ├── index.ts         # 统一导出
-│   │   │   ├── agent-loop.ts    # ★ Agent Loop — 多轮工具调用核心循环 + 上下文压缩
-│   │   │   ├── preprocessor.ts  # Slash命令 + 空/重复消息过滤
-│   │   │   ├── parser.ts        # AI输出解析 (function_call/纯文本/思考)
-│   │   │   ├── session.ts       # 会话状态机 (WAITING→PRE→GENERATING→EXECUTING)
-│   │   │   ├── thinking.ts      # ★ 思考强度决策 (auto/low/medium/high)
-│   │   │   └── plan.ts          # ★ Plan 步骤 (助手模式复杂任务预判拆解)
-│   │   ├── personality/         # ★ 人格模块
-│   │   │   ├── index.ts
-│   │   │   ├── types.ts / loader.ts / registry.ts / boundary.ts
-│   │   │   ├── middleware.ts    # ★ 人格中间件（包裹所有Agent阶段）
-│   │   │   └── cards/           # 人格卡 .md
-│   │   ├── tool/                # ★ 工具系统 (Phase 2)
-│   │   │   ├── index.ts / types.ts / registry.ts / router.ts
-│   │   │   ├── local/           # 轻量模式工具 (file/bash/system/http)
-│   │   │   ├── local-extra/     # 助手模式工具 (file-write/bash-full/app/clipboard/agent/file-delete)
-│   │   │   ├── skill/           # Skill 系统 (loader/registry/runner)
-│   │   │   └── mcp/             # MCP 集成 (manager/client)
-│   │   ├── safety/              # ★ 安全控制 (Phase 2)
-│   │   │   ├── index.ts
-│   │   │   └── checker.ts       # 统一安全 + 危险模式库 (BASH/FILE patterns)
-│   │   ├── context/             # ★ 上下文引擎 (Phase 2)
-│   │   │   └── builder.ts       # SystemPrompt 动态组装 + 消息压缩
-│   │   ├── reply/               # ★ 回复生成器 (Phase 2)
-│   │   │   └── generator.ts     # 后处理: kaomoji/截断/HTML转义
-│   │   ├── agent/               # Agent 模块
-│   │   │   ├── index.ts
-│   │   │   ├── types.ts         # Message / ToolCall / GenerateRequest 类型
-│   │   │   ├── runner.ts        # sendMessage() — 接入 AgentLoop
-│   │   │   ├── provider.ts      # OpenAICompatibleProvider — 支持工具调用+思考强度
-│   │   │   ├── service.ts / chat.ts / memory.ts / active.ts
-│   │   ├── window/ / audio/ / config.ts / logger.ts / cooldown.ts
-│   │   └── ...
-│   └── styles/
+│   │   │   ├── types.ts         # PersonalityCard / BoundaryInfo 等类型
+│   │   │   ├── loader.ts        # Vite ?raw 加载人格卡 + frontmatter 解析
+│   │   │   ├── registry.ts      # 人格注册表（激活/切换/开关/提示生成）
+│   │   │   ├── boundary.ts      # 人格界限系统（表层/中层/深层）
+│   │   │   └── cards/           # 人格卡 .md（统一模板: YAML frontmatter + 结构化章节）
+│   │   ├── agent/               # ★ Agent 内核模块
+│   │   │   ├── index.ts         # 统一导出
+│   │   │   ├── types.ts         # Message / AIProvider 类型
+│   │   │   ├── runner.ts        # sendMessage() / initChat() 入口
+│   │   │   ├── provider.ts      # OpenAICompatibleProvider（HTTP 调用）
+│   │   │   ├── service.ts       # AIService（封装 Provider + fallback）
+│   │   │   ├── chat.ts          # 聊天记录 + 未回复追踪
+│   │   │   ├── memory.ts        # 长期记忆（localStorage）
+│   │   │   └── active.ts        # 窗口监控 → 主动搭话
+│   │   ├── window/              # 窗口监控模块
+│   │   │   ├── index.ts / listener.ts / monitor.ts / active-context.ts
+│   │   ├── config.ts            # 全局配置加载器 (CONFIG.yaml → 类型化 getter + 运行时 userConfig localStorage 覆盖)
+│   │   ├── logger.ts            # 统一日志工具 (createLogger → invoke → Rust println)
+│   │   ├── env.ts               # 平台检测 (isWindows / isMacOS / windowMonitorAvailable)
+│   │   ├── cooldown.ts          # 全局冷却 + AI 并发锁
+│   │   ├── command-handler.ts   # 聊天命令
+│   │   ├── expressions.ts       # 关键词
+│   │   ├── animation.ts         # 动画帧定义
+│   │   └── audio/               # registry.ts (统一音效注册中心) + boundary.ts (人格界限，兼容层)
+│   └── styles/                  # global.css + fonts.css
 │
 ├── src-tauri/                   # Rust 后端
-│   ├── Cargo.toml               # windows-sys [Win], objc [Mac], num_cpus
+│   ├── Cargo.toml               # windows-sys [Win], objc [Mac] 平台依赖
+│   ├── tauri.conf.json          # macOSPrivateApi, windows=[] (Rust 手动创建)
+│   ├── capabilities/default.json
 │   └── src/
-│       ├── lib.rs / main.rs
-│       ├── macros/ / monitor/ / window/
+│       ├── main.rs              # cfg_attr 条件 windows_subsystem
+│       ├── lib.rs               # mod 声明 + run() 启动入口
+│       ├── macros/
+│       │   └── mod.rs           # Rust 日志宏 (rust_info!/rust_debug!/rust_warn!)
+│       ├── monitor/
+│       │   ├── mod.rs           # MonitorState + WindowChangePayload
+│       │   ├── capture.rs       # 窗口标题捕获 (Win: GetForegroundWindow / Mac: osascript)
+│       │   ├── visibility.rs     # 窗口可见性判断
+│       │   └── thread.rs        # 后台监控线程 spawn
+│       ├── window/
+│       │   ├── mod.rs           # 统一导出
+│       │   ├── main_win.rs      # 主窗口创建 + iTerm 风格增强
+│       │   └── settings.rs      # 设置窗口层级提升
 │       └── commands/
-│           ├── cursor.rs / monitor_ctl.rs / sim.rs / logging.rs
-│           ├── tool_exec.rs     # ★ Bash/文件/系统/剪贴板/应用
-│           └── mcp_bridge.rs    # ★ MCP stdio 桥接 (Phase 4 桩)
+│           ├── mod.rs           # 统一导出
+│           ├── cursor.rs        # get_cursor_position + compute_popup_position（共享光标辅助函数）
+│           ├── monitor_ctl.rs   # pause/resume/set_monitor_config
+│           ├── sim.rs           # open/close_windows_sim
+│           └── logging.rs       # log_message + focus_main
 │
 └── public/assets/               # 静态资源
 ```
@@ -125,20 +117,15 @@ CONFIG.yaml                    ← 默认配置 (跟 git)
          │
     src/services/config.ts     ← 类型化 getter + userConfig (localStorage 持久化覆盖)
          │
-         ├── modeConfig           → 助手模式开关
-         ├── aiConfig             → services/agent/ (provider, runner)
-         ├── thinkingConfig       → services/engine/thinking.ts
-         ├── loopConfig           → services/engine/agent-loop.ts
-         ├── toolsConfig          → services/tool/ (bash白名单/文件/MCP/Skill)
-         ├── safetyConfig         → services/safety/
-         ├── personalityConfig    → services/personality/ (registry, loader)
-         ├── windowMonitorConfig  → services/window/ (monitor, listener)
-         ├── aiLockConfig         → services/cooldown.ts
-         ├── memoryConfig         → services/agent/memory.ts
-         ├── desktopConfig        → App.vue → invoke("set_monitor_config") → Rust
-         ├── shortcutConfig       → App.vue → 全局快捷键注册 (global-shortcut 插件)
-         ├── loggingConfig        → services/logger.ts (日志级别)
-         └── userConfig           → App.vue / SettingsPanel → 弹窗位置/大小/快捷键/音效分配 (localStorage)
+         ├── aiConfig           → services/agent/ (provider, service)
+         ├── personalityConfig  → services/personality/ (registry, loader)
+         ├── windowMonitorConfig → services/window/ (monitor, listener)
+         ├── aiLockConfig       → services/cooldown.ts
+         ├── memoryConfig       → services/agent/memory.ts
+         ├── desktopConfig      → App.vue → invoke("set_monitor_config") → Rust
+         ├── shortcutConfig     → App.vue → 全局快捷键注册 (global-shortcut 插件)
+         ├── loggingConfig      → services/logger.ts (日志级别)
+         └── userConfig         → App.vue / SettingsPanel → 弹窗位置/大小/快捷键/音效分配 (localStorage)
 ```
 
 **所有模块通过 `@/services/config` 读取配置，不在模块内定义常量。**
@@ -154,72 +141,73 @@ CONFIG.yaml                    ← 默认配置 (跟 git)
 import { createLogger } from "@/services/logger";
 const log = createLogger("模块前缀");
 
-log.debug("调试信息...");
-log.info("重要节点");
-log.warn("警告");
-log.error("错误", err);
+log.debug("调试信息...");      // 仅 logging.level = debug
+log.info("重要节点");          // logging.level = debug|info
+log.warn("警告");              // logging.level = debug|info|warn
+log.error("错误", err);       // 永远输出
 ```
 
 输出格式：`[HH:MM:SS.mmm] LEVEL [前缀] 消息`
 
 Rust 端用 `rust_info!` / `rust_debug!` / `rust_warn!` 宏，格式一致。
 
+日志级别在 `CONFIG.yaml` → `logging.level` 控制。DEV 配置默认 `debug`，生产默认 `info`。
+
 ---
 
 ## 数据流
 
 ```
-┌── 会话管理 ──────────────────────────────────────────────┐
-│ SessionTabs (右侧聊天面板顶部) ←→ chat.ts                 │
-│   ├── localStorage "deskpet_sessions"    会话列表          │
-│   ├── localStorage "deskpet_active_session" 活跃ID        │
-│   ├── localStorage "deskpet_chat_<id>"  每会话消息         │
-│   ├── localStorage "deskpet_divider_pos" 分割线位置        │
-│   ├── 每轮 recordTurn → appendTurnToSessionFile()         │
-│   │   └── 实时写入 sessions/<sessionId>.md                │
-│   └── /clear → MemoryService.archiveSession() → Project.md│
-└──────────────────────────────────────────────────────────┘
-
-Rust 后台线程 → emit("window-changed") → window/listener.ts
+Rust 后台线程(轮询间隔来自 desktopConfig) → emit("window-changed") → window/listener.ts
     Windows: GetForegroundWindow    macOS: osascript
                                                       │
                                           ┌───────────┴──────────┐
                                     停留≥CONFIG秒?           关键词匹配?
                                           │                       │
                                     agent/active.ts         expressions.ts
-                                    → sendActiveMessage()   (切换角色表情)
-                                    → runAgentLoop()
+                                    (AI 主动搭话)          (切换角色表情)
                                           │
                                     → personality.getSystemPrompt()
-                                    → ContextEngine.build()
-                                    → [Plan] 助手+复杂任务预判拆解
-                                    → AgentLoop (多轮工具调用)
-                                         │
-                                         ├─ thinking 阶段 → 表情事件
-                                         ├─ executing 阶段 → 角色化文案
-                                         ├─ blocked 阶段 → 拒绝提示
-                                         ├─ done 阶段 → 音效事件
-                                         └─ 上下文利用率>95% → 自动压缩
-                                    → ReplyGenerator
+                                    → agent/provider (HTTP)
                                           │
                                     pushAssistantMessage + incrementUnanswered
-                                    → ChatPanel 显示
+                                    → playNotificationByBoundary()
+                                          │
+                                    ChatPanel 显示
 
-用户聊天 agent/runner.sendMessage() → PreProcessor → ContextEngine.build() → AgentLoop
-  → [循环] AI ↔ ToolExec → 安全校验(统一模式库) → 人格中间件.wrap → ReplyGenerator
-  → pushAssistantMessage + expression/sound 事件驱动 UI
+用户聊天 agent/runner.sendMessage() → 检查 AI 并发锁(isAIGenerating) → pushUserMessage → resetUnanswered
+  → personality.getSystemPrompt(unansweredCount) → agent/provider(HTTP) → pushAssistantMessage
 
-全局快捷键 → handleShortcutToggle()
-    ├── 收回: 缩放动画 1→0 + 收回音效 → hide() → 恢复家位置
-    └── 弹出: setPosition → 缩放动画 0→1 + 弹出音效 → focusInput()
+全局快捷键 (tauri-plugin-global-shortcut) → handleShortcutToggle()
+    │
+    ├── 收回(窗口可见): get_cursor_position(统一web坐标,macOS已Y轴翻转) → 缩放动画 1→0 + 收回音效 → hide()(先隐藏再清样式,零白窗闪烁) → 恢复家位置
+    └── 弹出(窗口隐藏): compute_popup_position(Rust: enhance_to_iterm_style+show+set_focus+光标web坐标计算) → 先设 opacity:0 → setPosition(Rust算好的web坐标) → 缩放动画 0→1 + 弹出音效 → focusInput()
+             │  isAnimating 延迟 500ms 清除 + ignoreResizeUntil 时间基准防 DPI 尺寸漂移
 
-启动: ActivationPolicy::Accessory → create_main_window
-  → initRegistry() + registerDefaultTools() + skill/MCP Mock 工具
-  → initChat() + startMemoryConsolidationTimer() (每60min检查>24h自动整理)
-  → initDebug()
+启动: ActivationPolicy::Accessory → create_main_window(index.html) → 窗口默认显示(居中)
+  → initRegistry() 初始化人格模块 → initChat() 欢迎消息 → 快捷键切换显示/隐藏
 
-Dock点击 → onFocusChanged → handleDockPopup() → 屏幕中央淡入
-设置页 → SettingsPanel → AI/人格/监控/模式/弹窗/快捷键/音效 + 工具/MCP/Skill预览
+Dock/任务栏 点击 → onFocusChanged → handleDockPopup() → 屏幕中央淡入 + 聚焦输入框
+
+窗口配置: alwaysOnTop + visibleOnAllWorkspaces + NSStatusWindowLevel(100) + fullScreenAuxiliary → 所有桌面/全屏悬浮
+
+窗口拖动 → onMoved → 追踪 lastMovedPos（和 setPosition 同一坐标系）→ 仅 emit("deskpet-moved") 通知设置面板
+                  → mouseup 检测用户手动拖动结束 → 用 lastMovedPos 保存 userConfig.fixedPosition
+
+窗口缩放 → onResized → toLogicalSize() 除以 devicePixelRatio 转逻辑坐标 → 与 expectedSize 对比(±5px+时间窗口)区分程序化/用户缩放
+                     → setWindowPos() 显式设 lastMovedPos（逻辑坐标），不依赖异步 onMoved 时序
+                     → 仅用户手动拖边缩放时保存 userConfig.popupSize（上限 4000 安全校验）
+
+右键选中文字 → 自定义右键菜单 (仅复制)
+
+全局禁选/禁拖 → global.css: #root { user-select: none } + img { -webkit-user-drag: none } + draggable="false"
+  仅聊天消息区 (#ch-msgs) 可选中文字
+
+设置页 → TitleBar 齿轮按钮 → openSettings() → 创建独立 WebviewWindow(settings.html, alwaysOnTop) → setTimeout 300ms 延迟 → invoke("enhance_settings_window")(Rust: level 100 + orderFrontRegardless + makeKeyAndOrderFront) → SettingsPanel 独立渲染
+  ├── 保存后窗口不自动关闭，显示"已保存"提示 3 秒后消失
+  ├── AI/人格/监控/锁/记忆/桌面/日志 → 可编辑，保存到 localStorage 覆盖，getter 动态读取 overrideOr() → 即时生效
+  ├── 人格切换：启用人格系统 + 选择人格卡 → 即时生效
+  ├── 弹窗模式/大小/快捷键/音效选择（下拉指定音效库音效 + 恢复默认按钮）→ 即时生效
 ```
 
 ---
@@ -234,8 +222,6 @@ Dock点击 → onFocusChanged → handleDockPopup() → 屏幕中央淡入
 - 新增表情在 `animation.ts` 加一条即可
 - **AI 模块通过 `@/services/agent` 统一导入**
 - **人格模块通过 `@/services/personality` 统一导入**
-- **工具模块通过 `@/services/tool` 统一导入**
-- **引擎模块通过 `@/services/engine` 统一导入**
 - 全局冷却/并发锁走 `cooldown.ts`
 - 平台检测走 `@/services/env`
 - **配置走 `@/services/config`**，不在模块里写死常量
@@ -246,17 +232,17 @@ Dock点击 → onFocusChanged → handleDockPopup() → 屏幕中央淡入
 
 | 功能 | macOS | 实现 |
 |---|---|---|
-| AI 聊天 / Agent Loop / 工具调用 | ✅ | 全平台 |
-| 文件/系统/HTTP 工具 | ✅ | 全平台 |
+| AI 聊天 / 角色表情 / 动画 | ✅ | 全平台 |
 | Windows 模拟器 | ✅ | 全平台 |
 | 窗口标题监控 | ✅ | osascript (需辅助功能权限) |
+| 跨显示器检测 | ✅ | 鼠标位置启发式 |
 | AI 主动搭话 | ✅ | 依赖窗口监控 |
-| 系统通知 | ❌ 已移除 | macOS 未签名构建无法实现 |
-| 全局快捷键召唤 | ✅ | global-shortcut 插件 |
+| 系统通知 | ❌ 已移除 | macOS 未签名构建无法实现（tauri-plugin 需签名，osascript 沙箱受限），留注释占位 |
+| 全局快捷键召唤 | ✅ | global-shortcut 插件 + NSEvent.mouseLocation (objc, 无需权限) + Cocoa→web Y轴翻转 |
 | 所有桌面悬浮 | ✅ | visibleOnAllWorkspaces + alwaysOnTop |
 | Dock 点击弹出 | ✅ | onFocusChanged → 屏幕中央淡入 |
-| 系统托盘 | ✅ | TrayIconBuilder |
-| 设置页面 | ✅ | SettingsPanel — 含模式切换 |
+| 系统托盘 | ✅ | TrayIconBuilder — 关闭隐藏到托盘，单击恢复 |
+| 设置页面 | ✅ | SettingsPanel — 配置/音效/快捷键/弹窗位置/大小 |
 
 ---
 
@@ -268,11 +254,10 @@ Dock点击 → onFocusChanged → handleDockPopup() → 屏幕中央淡入
 ## 必要操作 ##
 每次回复的最后加："喵~"
 每轮修改结束必须同步更新：README.md；AGENTS.md；DES.md
-有配置项修改的地方一定统一写在相应配置文件，并同步CONFIG.yaml和CONFIG-DEV.yaml及其example，以及设置页面、README.md
+有配置项修改的地方一定统一写在相应配置文件，并同步CONFIG.yaml和CONFIG-DEV.yaml及其example，以及设置页面、readme.md
 当我输入1时，默认从"要求.md"里获取需求
 一定要先给我思路，不要直接改代码，我同意后方可开始编码
-改动必须确认改动后调用链正常，同步更新test.ts测试脚本
+
 
 ## 核心方针 ##
 轻量化，低内存占用，高性能，token消耗少，功能强
-我的架构设计的md只是大方向，仿照claude code及其他的东西来写的，最终还是要你写的时候自觉地不断补充，自觉完善逻辑来实现

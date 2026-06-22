@@ -419,7 +419,7 @@ onMounted(async () => {
 
   // ── 从持久化配置恢复窗口尺寸和位置 ──
   const win = getCurrentWebviewWindow();
-  const savedSize = getPopupSize();
+  const savedSize = getDefaultSize();
   log.info("从配置恢复: size=", savedSize, "mode=", userConfig.popupMode, "fixedPos=", userConfig.fixedPosition);
 
   // 5秒保护窗口：启动期间所有 resize 事件都视为程序化，不保存到 popupSize

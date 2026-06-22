@@ -1,4 +1,4 @@
-<script setup lang="ts">
+﻿<script setup lang="ts">
 import "./styles/fonts.css";
 import "./styles/global.css";
 import { ref, onMounted, onUnmounted } from "vue";
@@ -10,16 +10,19 @@ import { register, unregister, isRegistered } from "@tauri-apps/plugin-global-sh
 import TitleBar from "./components/TitleBar.vue";
 import StreamView from "./components/StreamView.vue";
 import ChatPanel from "./components/ChatPanel.vue";
+import SessionTabs from "./components/SessionTabs.vue";
 import WinSim from "./components/winsim/WinSim.vue";
 import { handleCommand } from "./services/command-handler";
 import { initWindowListener } from "./services/window";
-import { initChat } from "@/services/agent";
+import { initChat, chatHistory, startMemoryConsolidationTimer, MemoryService, switchToSession, createNewSession, deleteSession, getSessions, getActiveSessionId, initWelcome } from "@/services/agent";
 import { initRegistry } from "@/services/personality";
-import { desktopConfig, shortcutConfig, userConfig, refreshUserCache } from "@/services/config";
+import { registerDefaultTools, registerAll } from "@/services/tool";
+import { desktopConfig, shortcutConfig, userConfig, refreshUserCache, getDefaultSize, modeConfig } from "@/services/config";
 import { isMacOS } from "@/services/env";
 import { createLogger } from "@/services/logger";
 import { playEventSound } from "@/services/audio/registry";
 import { emit, listen } from "@tauri-apps/api/event";
+import { initDebug } from "@/services/debug";
 
 const log = createLogger("Shortcut");
 
@@ -32,9 +35,72 @@ const showChat = ref(true);
 const winSize = ref({ w: 0, h: 0 });
 const streamRef = ref<InstanceType<typeof StreamView> | null>(null);
 const chatRef = ref<InstanceType<typeof ChatPanel> | null>(null);
+const tabsRef = ref<InstanceType<typeof SessionTabs> | null>(null);
+
+// ── 可拖动分割线 ──
+const DIVIDER_KEY = "deskpet_divider_pos";
+const DEFAULT_CHAT_WIDTH = 220;
+const MIN_CHAT_WIDTH = 120;
+const MAX_CHAT_RATIO = 0.55; // 聊天面板最大占窗口55%
+
+function loadDividerPos(): number {
+  try {
+    const v = localStorage.getItem(DIVIDER_KEY);
+    if (v) {
+      const n = parseInt(v, 10);
+      if (Number.isFinite(n) && n >= MIN_CHAT_WIDTH) return n;
+    }
+  } catch { /* ignore */ }
+  return DEFAULT_CHAT_WIDTH;
+}
+
+const chatWidth = ref(loadDividerPos());
+const isDraggingDivider = ref(false);
+
+function onDividerMousedown(e: MouseEvent) {
+  e.preventDefault();
+  isDraggingDivider.value = true;
+  const startX = e.clientX;
+  const startW = chatWidth.value;
+
+  function onMove(ev: MouseEvent) {
+    const delta = startX - ev.clientX;
+    const newW = Math.max(MIN_CHAT_WIDTH, Math.min(
+      Math.round(window.innerWidth * MAX_CHAT_RATIO),
+      startW + delta
+    ));
+    chatWidth.value = newW;
+  }
+
+  function onUp() {
+    isDraggingDivider.value = false;
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("mouseup", onUp);
+    try { localStorage.setItem(DIVIDER_KEY, String(chatWidth.value)); } catch { /* ignore */ }
+  }
+
+  document.addEventListener("mousemove", onMove);
+  document.addEventListener("mouseup", onUp);
+}
 
 function onChatSend(text: string) {
   handleCommand(text, streamRef.value);
+}
+
+/** 切换会话 */
+async function onSessionSwitch(session: { id: string; name: string }) {
+  await switchToSession(session.id);
+}
+
+/** 新建会话 */
+async function onSessionNew() {
+  await createNewSession();
+  initWelcome("Pちゃん！你终于来了！今天也要一直在一起哦～♡");
+}
+
+/** 归档/删除会话 */
+async function onSessionArchive(sessionId: string) {
+  await deleteSession(sessionId);
 }
 
 /** 收到新消息时自动弹出（如果已收回） */
@@ -75,6 +141,7 @@ let cleanupMoved: (() => void) | null = null;
 let cleanupResized: (() => void) | null = null;
 let cleanupPreview: (() => void) | null = null;
 let cleanupSettingsSaved: (() => void) | null = null;
+let cleanupExpression: (() => void) | null = null;
 
 // ==========================================
 // 快捷键召唤/收回
@@ -112,6 +179,7 @@ async function setWindowSize(w: number, h: number) {
 /** 程序化设置窗口位置（显式记录 lastMovedPos，避免依赖异步 onMoved 事件时序） */
 async function setWindowPos(x: number, y: number) {
   lastMovedPos.value = { x, y };
+  ignoreResizeUntil = Date.now() + 3000; // 覆盖 DPI 切换触发的 resize
   const win = getCurrentWebviewWindow();
   await win.setPosition(new LogicalPosition(x, y));
 }
@@ -137,7 +205,7 @@ async function handleDockPopup() {
   try {
     const win = getCurrentWebviewWindow();
     const el = rootRef.value!;
-    const sz = getPopupSize();
+    const sz = getDefaultSize();
 
     // 提前设 expectedSize + 时间窗口，保护 win.show() 触发的 resize 事件
     expectedSize.value = { w: sz.w, h: sz.h };
@@ -224,7 +292,7 @@ async function handleShortcutToggle() {
       log.debug("已收回");
     } else {
       // ── 弹出（窗口隐藏 → 可见）──
-      const sz = getPopupSize();
+      const sz = getDefaultSize();
       // 提前设 expectedSize + 时间窗口，保护 win.show() 触发的 resize 事件
       expectedSize.value = { w: sz.w, h: sz.h };
       ignoreResizeUntil = Date.now() + 3000;
@@ -368,12 +436,38 @@ onMounted(async () => {
   // 初始化人格模块
   initRegistry();
 
+  // 注册轻量模式工具（file/read/list/search, bash(白名单), system.info, http.get）
+  await registerDefaultTools();
+
+  // 加载 Skill + MCP Mock 工具
+  const { getSkillTools } = await import("@/services/tool/skill/loader")
+  const { initSkillRegistry } = await import("@/services/tool/skill/registry")
+  const { createMockMcpTools } = await import("@/services/tool/mcp/manager")
+  initSkillRegistry()
+  registerAll(getSkillTools())
+  registerAll(createMockMcpTools())
+  log.info("工具已就绪, 模式:", modeConfig.assistant ? "助手" : "轻量", "| 共", await import("@/services/tool/registry").then(m => m.toolCount()), "个")
+
+  // 初始化 debug 状态 + 刷新工具统计
+  await initDebug()
+
+  // 开发模式加载测试套件
+
+  // 开发模式加载测试套件
+  if (import.meta.env.DEV) {
+    import("@/services/test").then(() => {
+      log.info("🧪 测试套件已就绪 — 输入 __test.all() 运行所有测试")
+    })
+  }
+
   invoke("set_monitor_config", {
     pollingIntervalMs: desktopConfig.pollingIntervalMs,
     pauseExtraMs: desktopConfig.pauseExtraMs,
     waitTimeoutMs: desktopConfig.waitTimeoutMs,
   }).catch(() => {});
+  await MemoryService.init();
   await initChat("Pちゃん！你终于来了！今天也要一直在一起哦～♡");
+  startMemoryConsolidationTimer();
   playEventSound("welcome");
   cleanupListener = await initWindowListener(streamRef, winSize);
 
@@ -444,11 +538,19 @@ onMounted(async () => {
   try {
     cleanupSettingsSaved = await listen("deskpet-settings-saved", async () => {
       refreshUserCache();
-      // 重注册快捷键（用户可能在设置面板修改了快捷键）
+      const { initDebug } = await import("@/services/debug");
+      await initDebug();
       await unregisterShortcut();
       await registerShortcut();
-      log.debug("配置缓存已刷新 + 快捷键已重注册");
+      log.debug("配置缓存已刷新 + Debug状态已更新 + 快捷键已重注册");
     });
+  } catch { /* ignore */ }
+
+  // ── 人格效果事件：expression → StreamView 表情（实时，贯穿 AgentLoop）──
+  try {
+    cleanupExpression = await listen<{ expression: string }>("deskpet-expression", (event) => {
+      streamRef.value?.setExpression(event.payload.expression)
+    })
   } catch { /* ignore */ }
 
   // 点击任意位置关闭右键菜单
@@ -481,6 +583,7 @@ onUnmounted(() => {
   if (cleanupResized) cleanupResized();
   if (cleanupPreview) cleanupPreview();
   if (cleanupSettingsSaved) cleanupSettingsSaved();
+  if (cleanupExpression) cleanupExpression();
   document.removeEventListener("click", hideCtxMenu);
   unregisterShortcut();
 });
@@ -495,7 +598,20 @@ onUnmounted(() => {
         <img id="bg" src="/assets/windows/operation_base.png" alt="" />
         <StreamView ref="streamRef" />
       </div>
-      <div id="chat-slot" :class="{ closed: !showChat }">
+      <!-- 可拖动分割线 -->
+      <div
+        id="divider"
+        :class="{ dragging: isDraggingDivider }"
+        @mousedown="onDividerMousedown"
+      ></div>
+      <div id="chat-slot" :class="{ closed: !showChat }" :style="showChat ? { width: chatWidth + 'px' } : {}">
+        <SessionTabs
+          v-show="showChat"
+          ref="tabsRef"
+          @switch="onSessionSwitch"
+          @new="onSessionNew"
+          @archive="onSessionArchive"
+        />
         <ChatPanel v-show="showChat" ref="chatRef" @send="onChatSend" @request-popup="onRequestPopup" />
       </div>
     </div>

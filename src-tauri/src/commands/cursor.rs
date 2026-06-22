@@ -1,4 +1,4 @@
-// ==========================================
+﻿// ==========================================
 // 光标位置 & 弹窗位置计算
 // 共享光标/屏幕检测辅助函数，消除 get_cursor_position 和 compute_popup_position 间的重复代码
 // ==========================================
@@ -20,6 +20,7 @@ fn get_cursor_and_screen() -> Result<CursorScreen, String> {
     unsafe {
         use windows_sys::Win32::UI::WindowsAndMessaging::GetCursorPos;
         use windows_sys::Win32::Graphics::Gdi::{MonitorFromPoint, GetMonitorInfoW, MONITORINFOEXW};
+        use windows_sys::Win32::UI::HiDpi::GetDpiForMonitor;
         use windows_sys::Win32::Foundation::POINT;
         let mut pt = POINT { x: 0, y: 0 };
         if GetCursorPos(&mut pt) == 0 {
@@ -34,8 +35,21 @@ fn get_cursor_and_screen() -> Result<CursorScreen, String> {
             sx = r.left; sy = r.top;
             sw = r.right - r.left; sh = r.bottom - r.top;
         }
-        rust_debug!("光标(Win): ({},{}) 屏:({},{} {}x{})", pt.x, pt.y, sx, sy, sw, sh);
-        return Ok((pt.x, pt.y, sx, sy, sw, sh));
+        // 获取显示器 DPI，物理像素转逻辑（web）坐标
+        let mut dpi_x: u32 = 96;
+        let mut dpi_y: u32 = 96;
+        GetDpiForMonitor(monitor, 0, &mut dpi_x, &mut dpi_y);
+        let scale_x = dpi_x as f64 / 96.0;
+        let scale_y = dpi_y as f64 / 96.0;
+        let lx = (pt.x as f64 / scale_x).round() as i32;
+        let ly = (pt.y as f64 / scale_y).round() as i32;
+        let lsx = (sx as f64 / scale_x).round() as i32;
+        let lsy = (sy as f64 / scale_y).round() as i32;
+        let lsw = (sw as f64 / scale_x).round() as i32;
+        let lsh = (sh as f64 / scale_y).round() as i32;
+        rust_debug!("光标(Win): 物({},{}) 逻({},{}) 屏:物({},{} {}x{}) 逻({},{} {}x{}) DPI:({},{})",
+            pt.x, pt.y, lx, ly, sx, sy, sw, sh, lsx, lsy, lsw, lsh, dpi_x, dpi_y);
+        return Ok((lx, ly, lsx, lsy, lsw, lsh));
     }
 
     #[cfg(target_os = "macos")]
@@ -140,7 +154,6 @@ pub fn compute_popup_position(app: tauri::AppHandle, win_w: i32, win_h: i32) -> 
     // ── iTerm 风格增强 + 显示窗口 ──
     if let Some(win) = app.get_webview_window("main") {
         enhance_to_iterm_style(&win);
-        let _ = win.show();
         let _ = win.set_focus();
     }
 
@@ -157,7 +170,7 @@ pub fn compute_popup_position(app: tauri::AppHandle, win_w: i32, win_h: i32) -> 
     let mut win_x = web_cx - win_w / 2;
     let mut win_y = web_cy - win_h / 2;
     win_x = win_x.clamp(sx, sx + sw - win_w);
-    win_y = win_y.clamp(0, sh - win_h);
+    win_y = win_y.clamp(sy, sy + sh - win_h);
 
     rust_debug!("弹窗位置 web: win({},{}) cursor({},{}) 屏:({},{} {}x{})",
         win_x, win_y, web_cx, web_cy, sx, sy, sw, sh);

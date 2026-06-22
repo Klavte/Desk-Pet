@@ -38,50 +38,6 @@ const chatRef = ref<InstanceType<typeof ChatPanel> | null>(null);
 const tabsRef = ref<InstanceType<typeof SessionTabs> | null>(null);
 
 // ── 可拖动分割线 ──
-const DIVIDER_KEY = "deskpet_divider_pos";
-const DEFAULT_CHAT_WIDTH = 220;
-const MIN_CHAT_WIDTH = 120;
-const MAX_CHAT_RATIO = 0.55; // 聊天面板最大占窗口55%
-
-function loadDividerPos(): number {
-  try {
-    const v = localStorage.getItem(DIVIDER_KEY);
-    if (v) {
-      const n = parseInt(v, 10);
-      if (Number.isFinite(n) && n >= MIN_CHAT_WIDTH) return n;
-    }
-  } catch { /* ignore */ }
-  return DEFAULT_CHAT_WIDTH;
-}
-
-const chatWidth = ref(loadDividerPos());
-const isDraggingDivider = ref(false);
-
-function onDividerMousedown(e: MouseEvent) {
-  e.preventDefault();
-  isDraggingDivider.value = true;
-  const startX = e.clientX;
-  const startW = chatWidth.value;
-
-  function onMove(ev: MouseEvent) {
-    const delta = startX - ev.clientX;
-    const newW = Math.max(MIN_CHAT_WIDTH, Math.min(
-      Math.round(window.innerWidth * MAX_CHAT_RATIO),
-      startW + delta
-    ));
-    chatWidth.value = newW;
-  }
-
-  function onUp() {
-    isDraggingDivider.value = false;
-    document.removeEventListener("mousemove", onMove);
-    document.removeEventListener("mouseup", onUp);
-    try { localStorage.setItem(DIVIDER_KEY, String(chatWidth.value)); } catch { /* ignore */ }
-  }
-
-  document.addEventListener("mousemove", onMove);
-  document.addEventListener("mouseup", onUp);
-}
 
 function onChatSend(text: string) {
   handleCommand(text, streamRef.value);
@@ -598,13 +554,7 @@ onUnmounted(() => {
         <img id="bg" src="/assets/windows/operation_base.png" alt="" />
         <StreamView ref="streamRef" />
       </div>
-      <!-- 可拖动分割线 -->
-      <div
-        id="divider"
-        :class="{ dragging: isDraggingDivider }"
-        @mousedown="onDividerMousedown"
-      ></div>
-      <div id="chat-slot" :class="{ closed: !showChat }" :style="showChat ? { width: chatWidth + 'px' } : {}">
+      <div id="chat-slot" :class="{ closed: !showChat }">
         <SessionTabs
           v-show="showChat"
           ref="tabsRef"

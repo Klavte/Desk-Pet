@@ -1,13 +1,16 @@
 // ==========================================
 // Agent 主动消息引擎 —— 窗口监控触发 AI 主动搭话
-// Phase 2: 使用新的 Agent Loop
+// 轻量直调 Provider（不走 Agent Loop，参照 765e59e 实现）
 // ==========================================
 
-import { unansweredCount } from "./chat"
 import { isCoolingDown, isAIGenerating, setAIGenerating } from "@/services/cooldown"
 import { windowMonitorConfig } from "@/services/config"
 import { createLogger } from "@/services/logger"
-import { sendActiveMessage } from "./runner"
+import { OpenAICompatibleProvider } from "./provider"
+import { AIService } from "./service"
+import { createUserMessage } from "./types"
+import { getSystemPrompt } from "@/services/personality"
+import { processTrigger } from "@/services/window"
 
 const log = createLogger("Active")
 
@@ -44,15 +47,22 @@ export async function generateActiveMessage(ctx: PageContext): Promise<string | 
   lastTriggerTime = Date.now()
 
   try {
-    log.info("调用 AI（主动搭话）...")
+    log.info("调用 AI（主动搭话）| 窗口:", ctx.title.substring(0, 40))
 
-    // 使用统一入口 sendActiveMessage（isActiveMessage: true，不带工具）
-    const reply = await sendActiveMessage(
-      `主人正在使用: ${ctx.title}\n当前状态：\nunansweredCount: ${unansweredCount.value}`,
+    // 参照 765e59e: 直调 Provider + getSystemPrompt，不走 Agent Loop
+    const ai = new AIService(new OpenAICompatibleProvider())
+    const fullPersona = getSystemPrompt()
+    const userMsg = createUserMessage(
+      `主人正在使用: ${ctx.title}`,
     )
+    const reply = await ai.generateReply([userMsg], fullPersona)
 
     log.info("AI 回复:", reply)
-    return reply.trim() || null
+    const trimmed = reply.trim()
+    if (trimmed) {
+      processTrigger({ source: "ai", message: trimmed })
+    }
+    return trimmed || null
   } catch (e) {
     log.error("AI 失败", e instanceof Error ? e : undefined)
     return null

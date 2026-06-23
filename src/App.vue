@@ -670,7 +670,7 @@ onUnmounted(() => {
         :class="{ dragging: isDraggingDivider }"
         @mousedown="onDividerMousedown"
       ></div>
-      <div id="chat-slot" :class="{ closed: !showChat }" :style="showChat ? { width: chatWidth + 'px' } : {}">
+      <div id="chat-slot" :class="{ closed: !showChat, dragging: isDraggingDivider }" :style="showChat ? { width: chatWidth + 'px' } : {}">
         <SessionTabs
           v-show="showChat"
           ref="tabsRef"

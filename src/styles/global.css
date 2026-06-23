@@ -89,6 +89,11 @@ html, body, #app {
   width: 0 !important;
 }
 
+/* 拖拽时禁用过渡动画，确保跟手 */
+#chat-slot.dragging {
+  transition: none !important;
+}
+
 /* 可拖动分割线 */
 #divider {
   width: 4px;

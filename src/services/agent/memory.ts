@@ -1084,12 +1084,17 @@ export const MemoryService = {
           "",
         ].join("\n")
       } else {
-        // ★ 更新元数据中的轮数
+        // ★ 更新元数据：轮数 + 标题（首次用户消息后更新topic）
         const turnMatches = current.match(/^\s*-\s*\[[^\]]+\]\s*\*\*[^*]+\*\*:/gm) || []
         const turnCount = turnMatches.length + 1
+        const newTopic = sessionMemory.turns.find(t => t.role === "user")?.text.substring(0, 20)?.replace(/[\n\r/\\:*?"<>|]/g, "").trim() || ""
         current = current
           .replace(/^> 轮数: \d+/m, `> 轮数: ${turnCount}`)
           .replace(/^## 对话记录 \(\d+ 轮\)/m, `## 对话记录 (${turnCount} 轮)`)
+        // 文件名中的topic不更新，但标题行实时同步
+        if (newTopic && current.includes("-新会话")) {
+          current = current.replace(/^# session-\d{8}-\d{6}-新会话/m, `# ${sessionMemory.sessionId}-${newTopic}`)
+        }
         current = current.trimEnd() + "\n" + turnLine + "\n"
       }
       await writeSessionFile(filename, current)
@@ -1204,7 +1209,7 @@ export const MemoryService = {
         result.push({
           filename,
           sessionId: parsed.sessionId,
-          topic: parsed.topic,
+          topic: meta.topic || parsed.topic || "新会话",
           createdAt: meta.createdAt ?? "",
           mode: meta.mode ?? "",
           rounds: meta.rounds ?? 0,

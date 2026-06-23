@@ -132,7 +132,19 @@ async function onDeleteFile(filename: string) {
       const old = filename.match(/^(\d{8}\d{2}:\d{2}:\d{2})-.+\.md$/)
       if (old) sid = `session-${old[1].replace(/:/g, "")}`
     }
-    if (sid) removeSession(sid)
+    if (sid) {
+      removeSession(sid)
+      // ★ 如果删除的是当前活跃会话，切换到第一个剩余会话
+      if (getActiveSessionId() === sid || getActiveSessionId() === "") {
+        const remaining = getSessions()
+        if (remaining.length > 0) {
+          await switchToSession(remaining[0].id)
+        } else {
+          await createNewSession()
+          initWelcome("Pちゃん！你终于来了！今天也要一直在一起哦～♡")
+        }
+      }
+    }
     console.log("[App] onDeleteFile 完成:", filename, "sid:", sid)
   } catch (e) {
     log.error("删除会话文件失败:", filename, e)

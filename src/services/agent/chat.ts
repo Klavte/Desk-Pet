@@ -267,6 +267,14 @@ export function removeSession(sessionId: string): void {
   saveSessions()
   localStorage.removeItem(chatKey(sessionId))
   localStorage.removeItem(unansweredKey(sessionId))
+
+  // ★ 如果移除的是活跃会话，清空状态（由调用者负责切换到新会话）
+  if (activeSessionId === sessionId) {
+    activeSessionId = sessions.length > 0 ? sessions[0].id : ""
+    saveActiveId()
+    log.warn("removeSession: 移除了活跃会话，activeSessionId →", activeSessionId || "空")
+  }
+
   log.info("removeSession:", sessionId)
 }
 

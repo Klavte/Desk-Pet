@@ -243,6 +243,7 @@ async function setWindowSize(w: number, h: number) {
 /** 程序化设置窗口位置（显式记录 lastMovedPos，避免依赖异步 onMoved 事件时序） */
 async function setWindowPos(x: number, y: number) {
   lastMovedPos.value = { x, y };
+  ignoreResizeUntil = Date.now() + 3000; // 覆盖 DPI 切换触发的 resize
   const win = getCurrentWebviewWindow();
   await win.setPosition(new LogicalPosition(x, y));
 }
@@ -250,12 +251,12 @@ async function setWindowPos(x: number, y: number) {
 /** 获取弹窗尺寸（用户设置优先，带合法性校验防止 DPI 污染数据扩散） */
 function getPopupSize(): { w: number; h: number } {
   const sz = userConfig.popupSize;
-  // 校验：超过屏幕 2 倍或小于最小值视为污染数据，回退默认
-  const maxW = (window.screen.availWidth || 1920) * 2;
-  const maxH = (window.screen.availHeight || 1080) * 2;
+  // 校验：超过屏幕 60% 或小于最小值视为污染数据，回退默认 730×450
+  const maxW = Math.round((window.screen.availWidth || 1920) * 0.6);
+  const maxH = Math.round((window.screen.availHeight || 1080) * 0.6);
   if (sz.w < 50 || sz.h < 50 || sz.w > maxW || sz.h > maxH) {
-    log.warn("弹窗尺寸数据异常，回退默认 448x272 | saved:", sz);
-    return { w: 448, h: 272 };
+    log.warn("弹窗尺寸数据异常，回退默认 730x450 | saved:", sz);
+    return { w: 730, h: 450 };
   }
   return sz;
 }

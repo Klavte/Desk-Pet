@@ -2,7 +2,7 @@
 
 > 像素风桌面虚拟主播 — 常驻桌面，能聊天、能用工具、能看你窗口、能主动搭话。
 >
-> ⚠️ **当前状态：v2.0 架构重构中**。Phase 1+2 已完成（人格中间件 + Agent Loop + 工具系统）。
+> ⚠️ **当前状态：Phase 1+2 完成，Phase 3 大部分完成（缺完整安全+子代理），Phase 4 骨架完成（MCP/Skill/Plan 核心待实现）**。
 
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-blue)](https://github.com/Klavte/Desk-Pet)
 [![Tauri](https://img.shields.io/badge/Tauri-v2-ffc131)](https://tauri.app)
@@ -15,20 +15,22 @@
 
 - **桌面常驻** — 无边框透明窗口，角色在所有桌面/全屏 Space 悬浮
 - **会话管理** — 多会话标签页，可切换/新建/关闭，拖动分割线调整面板宽度，自动归档，启动恢复
-- **AI 聊天** — 人格卡驱动，兼容 OpenAI / DeepSeek / Ollama 等
-- **工具系统** — AI 可调用工具（读文件/列目录/搜索/系统信息/Bash/HTTP），轻量模式6个基础工具
-- **Agent Loop** — 多轮工具调用循环，思考强度自动调节 (auto/low/medium/high)
+- **AI 聊天** — 人格卡驱动，Ageng Loop 多轮工具调用，兼容 OpenAI / DeepSeek / Ollama 等
+- **工具系统** — AI 可调用工具：读文件/列目录/搜索文件/系统信息/Bash/HTTP GET
+- **助手模式** — 解锁写文件/全量Bash/打开应用/剪贴板/MCP Mock工具/Skill
+- **Agent Loop** — 多轮工具调用循环，思考强度自动调节 (auto/low/medium/high)，上下文自动压缩
 - **人格中间件** — 横切所有 Agent 阶段的角色化表达（表情/音效/角色话术）
 - **窗口感知** — 监控前台窗口标题，停留一定时间后 AI 主动搭话
-- **快捷键召唤** — 全局快捷键弹出/收回，缩放动画
+- **快捷键召唤** — 全局快捷键弹出/收回，弹性缩放动画
 - **人格系统** — 独立人格模块，支持热插拔切换/开关，在设置面板配置
 - **人格进化** — 不理她太久会从甜蜜女友逐渐变成病娇（unansweredCount + boundary 系统）
-- **安全控制** — 轻量模式统一安全入口（SAFE放行/NORMAL+拒绝），助手模式完整四级
-- **记忆系统** — MEMORY.md 双块结构化注册表（系统块+长期记忆块）+ sessions/ 实时写入 + 会话历史面板 + LLM 整理 + Fork 补记忆
+- **安全控制** — 统一安全入口，轻量模式 SAFE放行/其余拒绝，助手模式四级【待完善】
+- **记忆系统** — MEMORY.md 双块结构化注册表 + sessions/ 实时写入 + 会话历史面板 + LLM 整理 + Fork 补记忆
 - **音效系统** — 29 个内置音效，Web Audio 合成无需外部文件
 - **设置面板** — 独立窗口，AI / 监控 / 人格 / 模式 / 弹窗 / 快捷键 / 音效可配置
 - **Windows 模拟器** — 彩蛋：像素风 Win7 桌面（输入 `open win` 触发）
 - **系统托盘** — 关闭隐藏到托盘，单击恢复
+- **Dock 点击弹出** — 窗口隐藏时点击 Dock/任务栏图标，屏幕中央淡入弹出
 
 ---
 
@@ -48,7 +50,10 @@
 | 全量 Bash | ❌ | ✅ |
 | 打开应用 | ❌ | ✅ |
 | 剪贴板操作 | ❌ | ✅ |
-| MCP / Skill | ❌ | ✅ (Phase 4) |
+| MCP (Mock) | ❌ | ✅ (4个Mock工具) |
+| Skill (基础) | ❌ | ✅ (3个Skill) |
+| 子代理 (agent.spawn) | ❌ | ⚠️ 桩 |
+| 完整安全确认UI | ❌ | ⚠️ 待实现 |
 
 ---
 
@@ -56,9 +61,11 @@
 
 | 项目 | 状态 | 说明 |
 |------|------|------|
-| 助手模式完整安全 | ⚠️ Phase 3 | 四级检查+确认UI+参数检测 |
-| MCP 集成 | ⚠️ Phase 4 | MCP Manager + Client (stdio/SSE) |
-| Skill 系统 | ⚠️ Phase 4 | skills/ 目录加载 + 编排执行 |
+| 助手模式完整安全 | ⚠️ Phase 3 | 四级检查+确认UI+参数级检测 (当前只有简洁模式) |
+| agent.spawn 子代理 | ⚠️ Phase 3 | fork/team 模式（当前为桩） |
+| MCP 真实连接 | ⚠️ Phase 4 | stdio/SSE 连接管理 + JSON-RPC（当前为Mock） |
+| Skill 编排执行 | ⚠️ Phase 4 | Runner 完整内循环（当前为透传桩） |
+| Plan AI 模型预判 | ⚠️ Phase 4 | 模型预判拆解步骤（当前为关键词桩） |
 | 流式输出 | ⚠️ 骨架 | Provider 接口已支持，UI 层待接 |
 | 系统通知 | ❌ 已移除 | macOS 未签名构建下无法实现 |
 | 窗口感知精度 | ⚠️ 基础可用 | macOS 依赖 osascript |
@@ -107,11 +114,11 @@ Desk-Pet/
 │
 ├── memory/                  # 长期记忆（文件注册表）
 │   ├── MEMORY.md            # ★ 长期记忆索引 (→ CANDY/User/Outside/独立条目)
-│   ├── SESSION_MEMORY.md    # 当前会话工作记忆
 │   ├── CANDY.md / User.md / Outside.md
 │   └── Project.md           # ★ 会话归档指针 (→ sessions/)
 ├── sessions/                # 历史会话归档
 │   └── session-xxx.md
+├── skills/                  # Skill 文件 (3个内置Skill: summarize-code/organize-files/check-weather)
 ├── src/                     # Vue 3 + TypeScript 前端
 │   ├── App.vue              # 根组件（窗口生命周期/快捷键/托盘/会话管理）
 │   ├── components/          # UI 组件
@@ -126,7 +133,8 @@ Desk-Pet/
 │       │   ├── preprocessor.ts  # Slash命令+过滤
 │       │   ├── parser.ts        # AI输出解析
 │       │   ├── session.ts       # 会话状态机
-│       │   └── thinking.ts      # 思考强度决策
+│       │   ├── thinking.ts      # 思考强度决策
+│       │   └── plan.ts          # Plan 步骤 (助手模式)
 │       ├── personality/     # 人格模块
 │       │   ├── middleware.ts # ★ 人格中间件 (横切所有阶段)
 │       │   ├── registry.ts / loader.ts / boundary.ts
@@ -135,12 +143,14 @@ Desk-Pet/
 │       │   ├── registry.ts  # 统一注册表 (按模式)
 │       │   ├── router.ts    # 工具路由
 │       │   ├── local/       # 轻量6工具 (始终加载)
-│       │   └── local-extra/ # 助手模式工具 (动态加载)
+│       │   ├── local-extra/ # 助手模式工具 (动态加载)
+│       │   ├── skill/       # Skill 系统
+│       │   └── mcp/         # MCP 集成 (Mock)
 │       ├── safety/          # ★ 安全控制
-│       │   └── checker.ts   # 轻量简洁模式
+│       │   └── checker.ts   # 统一安全 + 危险模式库
 │       ├── context/         # ★ 上下文引擎
 │       │   ├── builder.ts   # SystemPrompt组装
-│       │   └── tool-selector.ts # 工具声明决策
+│       │   └── index.ts
 │       ├── reply/           # 回复生成器
 │       ├── agent/           # Agent 模块
 │       │   ├── runner.ts    # sendMessage/initChat (接入AgentLoop)
@@ -151,9 +161,11 @@ Desk-Pet/
 │       │   ├── active.ts    # 窗口监控→主动搭话
 │       │   └── types.ts
 │       ├── window/          # 窗口监控
-│       ├── audio/           # 音效注册中心
+│       ├── audio/           # 音效注册中心 + 界限联动
 │       ├── config.ts        # 配置加载器
 │       ├── cooldown.ts      # 全局冷却+AI并发锁
+│       ├── debug.ts         # Debug 状态数据
+│       ├── animation.ts / expressions.ts / command-handler.ts
 │       └── ...
 │
 ├── src-tauri/               # Rust 后端
@@ -163,7 +175,8 @@ Desk-Pet/
 │       └── commands/
 │           ├── cursor.rs / monitor_ctl.rs / sim.rs / logging.rs
 │           ├── tool_exec.rs  # ★ Bash/文件/系统/剪贴板/应用
-│           └── mcp_bridge.rs # ★ MCP stdio 桥接 (Phase 4)
+│           ├── memory_cmd.rs # ★ 文件系统操作 (init/list/delete sessions)
+│           └── mcp_bridge.rs # ★ MCP stdio 桥接 (Phase 4 桩)
 │
 └── public/assets/
 ```

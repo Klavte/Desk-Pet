@@ -51,7 +51,7 @@ Desk-Pet/
 ├── sessions/                    # ★ 历史会话归档
 │   └── session-YYYYMMDD-HHmmss-主题.md   # 结构化会话文件（元信息→摘要→对话记录）
 │
-├── skills/                      # ★ Skill 文件目录 (Phase 4)
+├── skills/                      # ★ Skill 文件目录 (3个内置Skill)
 │
 ├── src/                         # Vue 前端
 │   ├── main.ts / notification-main.ts / settings-main.ts / App.vue
@@ -78,12 +78,13 @@ Desk-Pet/
 │   │   │   ├── local/           # 轻量模式工具 (file/bash/system/http)
 │   │   │   ├── local-extra/     # 助手模式工具 (file-write/bash-full/app/clipboard/agent/file-delete)
 │   │   │   ├── skill/           # Skill 系统 (loader/registry/runner)
-│   │   │   └── mcp/             # MCP 集成 (manager/client)
+│   │   │   └── mcp/             # MCP 集成 (manager/client/stdio/sse)
 │   │   ├── safety/              # ★ 安全控制 (Phase 2)
 │   │   │   ├── index.ts
 │   │   │   └── checker.ts       # 统一安全 + 危险模式库 (BASH/FILE patterns)
 │   │   ├── context/             # ★ 上下文引擎 (Phase 2)
 │   │   │   └── builder.ts       # SystemPrompt 动态组装 + 消息压缩
+│   │   │   └── index.ts          # 统一导出
 │   │   ├── reply/               # ★ 回复生成器 (Phase 2)
 │   │   │   └── generator.ts     # 后处理: kaomoji/截断/HTML转义
 │   │   ├── agent/               # Agent 模块
@@ -92,7 +93,8 @@ Desk-Pet/
 │   │   │   ├── runner.ts        # sendMessage() — 接入 AgentLoop
 │   │   │   ├── provider.ts      # OpenAICompatibleProvider — 支持工具调用+思考强度
 │   │   │   ├── service.ts / chat.ts / memory.ts / active.ts
-│   │   ├── window/ / audio/ / config.ts / logger.ts / cooldown.ts
+│   │   ├── window/ / audio/ / config.ts / logger.ts / cooldown.ts / debug.ts
+│   │   ├── animation.ts / expressions.ts / command-handler.ts / env.ts / test.ts
 │   │   └── ...
 │   └── styles/
 │
@@ -104,6 +106,7 @@ Desk-Pet/
 │       └── commands/
 │           ├── cursor.rs / monitor_ctl.rs / sim.rs / logging.rs
 │           ├── tool_exec.rs     # ★ Bash/文件/系统/剪贴板/应用
+│           ├── memory_cmd.rs    # ★ 文件系统操作 (init/list/delete sessions)
 │           └── mcp_bridge.rs    # ★ MCP stdio 桥接 (Phase 4 桩)
 │
 └── public/assets/               # 静态资源
@@ -223,8 +226,8 @@ Rust 后台线程 → emit("window-changed") → window/listener.ts
     └── 弹出: setPosition → 缩放动画 0→1 + 弹出音效 → focusInput()
 
 启动: ActivationPolicy::Accessory → create_main_window
-  → initRegistry() + registerDefaultTools() + skill/MCP Mock 工具
-  → initChat() + startMemoryConsolidationTimer() (每60min检查>24h自动整理)
+  → registerDefaultTools() + (助手模式: registerAssistantTools + skill/MCP Mock)
+  → initChat() + startMemoryConsolidationTimer() (每60min触发记忆整理)
   → initDebug()
 
 Dock点击 → onFocusChanged → handleDockPopup() → 屏幕中央淡入
@@ -276,7 +279,7 @@ Dock点击 → onFocusChanged → handleDockPopup() → 屏幕中央淡入
 
 ## 必要操作 ##
 每次回复的最后加："宝"
-每轮修改结束必须同步更新：README.md；CLAUDE.md；DES.md
+每轮修改结束必须同步更新：README.md；CLAUDE.md；DES.md（现有架构进度及各个实现）
 有配置项修改的地方一定统一写在相应配置文件，并同步CONFIG.yaml和CONFIG-DEV.yaml及其example，以及设置页面、README.md
 当我输入1时，默认从"要求.md"里获取需求
 一定要先给我思路，不要直接改代码，我同意后方可开始编码

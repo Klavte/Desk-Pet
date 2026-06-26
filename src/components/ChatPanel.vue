@@ -8,6 +8,7 @@ import { listen } from "@tauri-apps/api/event";
 import { searchSlashCommands, findSlashCommand, initSlashCommands } from "@/services/engine";
 import type { SlashMatch } from "@/services/engine";
 import DebugBar from "./DebugBar.vue";
+import { confirmState, resolveConfirm } from "@/services/safety/confirm";
 
 // ★ 同步初始化 Slash 命令注册表（模块加载时即完成，保证后续即时可用）
 initSlashCommands();
@@ -386,6 +387,19 @@ onUnmounted(() => {
       <button @click="send" :disabled="!input.trim()">发送</button>
     </div>
 
+    <!-- 安全确认弹窗 -->
+    <Transition name="confirm-fade">
+      <div v-if="confirmState.pending" id="ch-confirm-overlay">
+        <div id="ch-confirm-box">
+          <div id="ch-confirm-msg">{{ confirmState.pending.message }}</div>
+          <div id="ch-confirm-btns">
+            <button class="ch-confirm-btn ch-confirm-deny" @click="resolveConfirm(false)">✕ 取消</button>
+            <button class="ch-confirm-btn ch-confirm-ok" @click="resolveConfirm(true)">✓ 确认执行</button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
     <DebugBar />
   </div>
 </template>
@@ -613,4 +627,45 @@ onUnmounted(() => {
 .slash-drop-leave-active { transition: opacity 0.1s ease; }
 .slash-drop-enter-from { opacity: 0; transform: translateY(4px); }
 .slash-drop-leave-to { opacity: 0; }
+
+/* ── 安全确认弹窗 ── */
+#ch-confirm-overlay {
+  position: absolute;
+  inset: 0; z-index: 20;
+  display: flex; align-items: flex-end; justify-content: center;
+  padding-bottom: 12px;
+  background: rgba(30, 8, 16, 0.7);
+  backdrop-filter: blur(2px);
+}
+#ch-confirm-box {
+  background: #2a1020;
+  border: 1px solid #6a3050;
+  border-radius: 8px;
+  padding: 10px 14px;
+  max-width: 90%;
+}
+#ch-confirm-msg {
+  color: #f0c0d0;
+  font-size: 11px;
+  margin-bottom: 8px;
+  text-align: center;
+}
+#ch-confirm-btns {
+  display: flex; gap: 8px; justify-content: center;
+}
+.ch-confirm-btn {
+  padding: 4px 16px; font-size: 11px;
+  border-radius: 12px; border: 1px solid #6a4060;
+  background: #3e1a2e; color: #f0e0f0;
+  cursor: pointer; font-family: inherit;
+}
+.ch-confirm-btn:hover { background: #5a3050; }
+.ch-confirm-btn.ch-confirm-ok {
+  background: #c4276f; border-color: #c4276f; color: #fff;
+}
+.ch-confirm-btn.ch-confirm-ok:hover { background: #e84a8a; }
+
+.confirm-fade-enter-active { transition: opacity 0.15s ease; }
+.confirm-fade-leave-active { transition: opacity 0.1s ease; }
+.confirm-fade-enter-from, .confirm-fade-leave-to { opacity: 0; }
 </style>

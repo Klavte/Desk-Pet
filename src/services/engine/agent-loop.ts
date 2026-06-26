@@ -9,10 +9,11 @@ import { createMessageId, createToolMessage } from "@/services/agent/types"
 import { buildContext } from "@/services/context/builder"
 import { executeTool } from "@/services/tool/router"
 import { getToolByName } from "@/services/tool/registry"
-import { checkSafety } from "@/services/safety/checker"
+import { checkSafety, trustToolInSession } from "@/services/safety/checker"
+import { requestConfirm } from "@/services/safety/confirm"
 import { PetPersonalityMiddleware } from "@/services/personality/middleware"
 import type { PersonalityEffect } from "@/services/personality/middleware"
-import { decideThinkingEffort, resetToolCallCount, incrementToolCallCount } from "./thinking"
+import { getEffectiveThinkingEffort } from "@/services/debug"
 import { planStep } from "./plan"
 import { transition, recordMessage, recordToolCall } from "./session"
 import { loopConfig, modeConfig } from "@/services/config"
@@ -48,13 +49,12 @@ export async function runAgentLoop(input: AgentLoopInput): Promise<AgentLoopOutp
   let retriesUsed = 0
   let lastError: Error | null = null
 
-  resetToolCallCount()
   recordMessage()
 
   // ── 记录用户轮次 → sessions/*.md ──
   MemoryService.recordTurn("user", userText)
 
-  const thinkingEffort = decideThinkingEffort(userText, isActiveMessage ?? false, isRetry ?? false)
+  const thinkingEffort = getEffectiveThinkingEffort()
   const ctx = buildContext({ recentMessages: chatMessages, userText, unansweredCount, thinkingEffort, isActiveMessage })
 
   // ── Plan 步骤（助手模式 + 复杂任务）──
@@ -155,7 +155,7 @@ async function runLoopIteration(opts: {
     const response = await provider.generateReply({
       messages: loopMessages,
       systemPrompt: ctx.systemPrompt,
-      tools: roundCount === 1 ? ctx.tools : undefined,
+      tools: ctx.tools,
       thinkingEffort,
       streamEnabled: loopConfig.streamEnabled,
     })
@@ -215,7 +215,6 @@ async function runLoopIteration(opts: {
 
     let allAllowed = true
     for (const tc of toolCalls) {
-      incrementToolCallCount()
       recordToolCall()
 
       const params = parseArgs(tc.arguments)
@@ -252,6 +251,28 @@ async function runLoopIteration(opts: {
           error: safetyResult.personalityMessage ?? "被安全策略拦截",
         })))
         continue
+      }
+
+      // ── 安全确认弹窗（需要用户确认时）──
+      if (safetyResult.needsConfirm && safetyResult.confirmMessage) {
+        const approved = await requestConfirm(tc.name, safetyResult.confirmMessage)
+        if (!approved) {
+          const blockedEffect = PetPersonalityMiddleware.wrap("blocked", { toolName: tc.name })
+          applyEffect(blockedEffect, effects)
+          toolCallHistory.push({
+            toolName: tc.name, status: "denied",
+            personalityMsg: "用户取消了操作",
+          })
+          loopMessages.push(createToolMessage(tc.id, JSON.stringify({
+            toolCallId: tc.id, content: "",
+            error: "用户取消了操作",
+          })))
+          continue
+        }
+        // 用户确认 → NORMAL 级别加入会话信任
+        if (tool.safetyLevel === "NORMAL") {
+          trustToolInSession(tc.name)
+        }
       }
 
       // ── 执行工具 ──

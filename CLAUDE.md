@@ -82,9 +82,10 @@ Desk-Pet/
 │   │   │   ├── local-extra/     # 助手模式工具 (file-write/bash-full/app/clipboard/agent/file-delete)
 │   │   │   ├── skill/           # Skill 系统 (loader/registry/runner)
 │   │   │   └── mcp/             # MCP 集成 (manager/client/stdio/sse)
-│   │   ├── safety/              # ★ 安全控制 (Phase 2)
+│   │   ├── safety/              # ★ 安全控制 (Phase 2 → 3 完成)
 │   │   │   ├── index.ts
-│   │   │   └── checker.ts       # 统一安全 + 危险模式库 (BASH/FILE patterns)
+│   │   │   ├── checker.ts       # 四级安全 + 三策略 + 会话信任 + 危险模式库
+│   │   │   └── confirm.ts       # 确认弹窗 Promise 桥接 (AgentLoop↔ChatPanel)
 │   │   ├── context/             # ★ 上下文引擎 (Phase 2)
 │   │   │   └── builder.ts       # SystemPrompt 动态组装 + 消息压缩
 │   │   │   └── index.ts          # 统一导出
@@ -110,7 +111,7 @@ Desk-Pet/
 │           ├── cursor.rs / monitor_ctl.rs / sim.rs / logging.rs
 │           ├── tool_exec.rs     # ★ Bash/文件/系统/剪贴板/应用
 │           ├── memory_cmd.rs    # ★ 文件系统操作 (init/list/delete sessions)
-│           └── mcp_bridge.rs    # ★ MCP stdio 桥接 (Phase 4 桩)
+│           └── mcp_bridge.rs    # ★ MCP stdio 桥接 (spawn/send/kill)【已实现】
 │
 └── public/assets/               # 静态资源
 ```
@@ -129,6 +130,7 @@ CONFIG.yaml                    ← 默认配置 (跟 git)
          ▼ Vite YAML Plugin (js-yaml 编译时转换)
          │
     src/services/config.ts     ← 类型化 getter + userConfig (localStorage 持久化覆盖)
+         │                         ★ MCP Server/ Skill 配置通过 setOverride 同步到覆盖层
          │
          ├── modeConfig           → 助手模式开关
          ├── aiConfig             → services/agent/ (provider, runner)
@@ -191,7 +193,7 @@ Rust 端用 `rust_info!` / `rust_debug!` / `rust_warn!` 宏，格式一致。
 │   ├── sessions[] 以 sessions/ 目录为真相源                 │
 │   ├── 切换/恢复时调用 MemoryService.setActiveSession()    │
 │   ├── agent-loop: recordTurn → appendTurnToSessionFile()  │
-│   │   └── 按 sessionId 匹配已有文件，更新 轮数 元数据       │
+│   │   └── 按 sessionId 匹配已有文件，更新轮数/token统计元数据 + 首次用户消息后自动重命名文件topic + 持久化累计token │
 │   └── /clear → MemoryService.archiveSession() → Project.md│
 └──────────────────────────────────────────────────────────┘
 
@@ -221,7 +223,7 @@ Rust 后台线程 → emit("window-changed") → window/listener.ts
                                     → ChatPanel 显示
 
 用户聊天 agent/runner.sendMessage() → PreProcessor → ContextEngine.build() → AgentLoop
-  → [循环] AI ↔ ToolExec → 安全校验(统一模式库) → 人格中间件.wrap → ReplyGenerator
+  → [循环] AI ↔ 安全校验(四级+三策略) → (需要确认→ChatPanel弹窗) → ToolExec → 人格中间件.wrap → ReplyGenerator
   → pushAssistantMessage + expression/sound 事件驱动 UI
 
 全局快捷键 → handleShortcutToggle()
@@ -229,12 +231,12 @@ Rust 后台线程 → emit("window-changed") → window/listener.ts
     └── 弹出: setPosition → 缩放动画 0→1 + 弹出音效 → focusInput()
 
 启动: ActivationPolicy::Accessory → create_main_window
-  → registerDefaultTools() + (助手模式: registerAssistantTools + skill/MCP Mock)
+  → registerDefaultTools() + (助手模式: registerAssistantTools + MCP真实连接/Mock + Skill子循环)
   → initChat() + startMemoryConsolidationTimer() (每60min触发记忆整理)
   → initDebug()
 
 Dock点击 → onFocusChanged → handleDockPopup() → 屏幕中央淡入
-设置页 → SettingsPanel → AI/人格/监控/模式/弹窗/快捷键/音效 + 工具/MCP/Skill预览
+设置页 → SettingsPanel → AI/人格/监控/模式/弹窗/快捷键/音效 + 工具/MCP/Skill可编辑 + CONFIG导入导出
 ```
 
 ---
@@ -282,8 +284,8 @@ Dock点击 → onFocusChanged → handleDockPopup() → 屏幕中央淡入
 
 ## 必要操作 ##
 每次回复的最后加："宝"
-每轮修改结束必须同步更新：README.md；CLAUDE.md；DES.md（现有架构进度及各个实现）
-有配置项修改的地方一定统一写在相应配置文件，并同步CONFIG.yaml和CONFIG-DEV.yaml及其example，以及设置页面、README.md
+每轮修改结束必须同步更新：README.md（给用户看的）；CLAUDE.md；DES.md（给我看的，现有架构进度及各个实现）
+有配置项修改的地方一定统一写在相应配置文件，并同步CONFIG.yaml和CONFIG-DEV.yaml及其example，以及设置页面
 当我输入1时，默认从"要求.md"里获取需求
 一定要先给我思路，不要直接改代码，我同意后方可开始编码
 改动必须确认改动后调用链正常，自己测试一遍，确保目录下文件及其内容符合预期，日志正常

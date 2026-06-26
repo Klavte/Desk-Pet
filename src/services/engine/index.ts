@@ -21,13 +21,7 @@ export {
 export type { AgentState, SessionState } from "./session"
 
 // ── Thinking ──
-export {
-  decideThinkingEffort,
-  getThinkingBudget,
-  resetToolCallCount,
-  incrementToolCallCount,
-  getToolCallCount,
-} from "./thinking"
+export { getThinkingBudget } from "./thinking"
 
 // ── Context ──
 export { buildContext } from "@/services/context/builder"

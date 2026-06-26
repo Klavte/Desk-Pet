@@ -220,6 +220,7 @@ let cleanupMoved: (() => void) | null = null;
 let cleanupResized: (() => void) | null = null;
 let cleanupPreview: (() => void) | null = null;
 let cleanupSettingsSaved: (() => void) | null = null;
+let cleanupRestart: (() => void) | null = null;
 let cleanupExpression: (() => void) | null = null;
 
 // ==========================================
@@ -607,6 +608,19 @@ onMounted(async () => {
     });
   } catch { /* ignore */ }
 
+  // 设置面板 → 请求重启应用
+  try {
+    cleanupRestart = await listen("deskpet-restart", async () => {
+      log.info("收到重启请求，正在退出...")
+      // 关闭所有窗口让应用退出（用户需手动重启）
+      const { getAllWebviewWindows } = await import("@tauri-apps/api/webviewWindow")
+      const windows = await getAllWebviewWindows()
+      for (const w of windows) {
+        try { await w.close() } catch { /* ignore */ }
+      }
+    })
+  } catch { /* ignore */ }
+
   // ── 人格效果事件：expression → StreamView 表情（实时，贯穿 AgentLoop）──
   try {
     cleanupExpression = await listen<{ expression: string }>("deskpet-expression", (event) => {
@@ -644,6 +658,7 @@ onUnmounted(() => {
   if (cleanupResized) cleanupResized();
   if (cleanupPreview) cleanupPreview();
   if (cleanupSettingsSaved) cleanupSettingsSaved();
+  if (cleanupRestart) cleanupRestart();
   if (cleanupExpression) cleanupExpression();
   document.removeEventListener("click", hideCtxMenu);
   unregisterShortcut();

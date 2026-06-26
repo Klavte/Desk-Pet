@@ -29,7 +29,8 @@ const log = createLogger("Session")
 
 function generateSessionId(): string {
   const now = new Date()
-  const ts = now.toISOString().slice(0, 19).replace(/[-:T]/g, "").replace(/(\d{8})(\d{6})/, "$1-$2")
+  const pad = (n: number) => String(n).padStart(2, "0")
+  const ts = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
   return `session-${ts}`
 }
 

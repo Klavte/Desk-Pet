@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import "./styles/fonts.css";
 import "./styles/global.css";
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, nextTick, onMounted, onUnmounted } from "vue";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { LogicalPosition, LogicalSize } from "@tauri-apps/api/dpi";
@@ -10,11 +10,12 @@ import { register, unregister, isRegistered } from "@tauri-apps/plugin-global-sh
 import TitleBar from "./components/TitleBar.vue";
 import StreamView from "./components/StreamView.vue";
 import ChatPanel from "./components/ChatPanel.vue";
+import SessionTabs from "./components/SessionTabs.vue";
 import WinSim from "./components/winsim/WinSim.vue";
-import { handleCommand } from "./services/command-handler";
 import { initWindowListener } from "./services/window";
-import { initChat } from "@/services/agent";
-import { initRegistry } from "@/services/personality";
+import { MemoryService, switchToSession, createNewSession, addSession, removeSession, getSessions, getActiveSessionId, initWelcome, createUserMessage, createAssistantMessage } from "@/services/agent";
+import type { SessionFileMeta } from "@/services/agent/memory";
+import { initApp } from "@/services/init";
 import { desktopConfig, shortcutConfig, userConfig, refreshUserCache } from "@/services/config";
 import { isMacOS } from "@/services/env";
 import { createLogger } from "@/services/logger";
@@ -32,9 +33,153 @@ const showChat = ref(true);
 const winSize = ref({ w: 0, h: 0 });
 const streamRef = ref<InstanceType<typeof StreamView> | null>(null);
 const chatRef = ref<InstanceType<typeof ChatPanel> | null>(null);
+const tabsRef = ref<InstanceType<typeof SessionTabs> | null>(null);
 
-function onChatSend(text: string) {
-  handleCommand(text, streamRef.value);
+// ── 可拖动分割线 ──
+const DIVIDER_KEY = "deskpet_divider_pos";
+const DEFAULT_CHAT_WIDTH = 220;
+const MIN_CHAT_WIDTH = 120;
+const MAX_CHAT_RATIO = 0.55; // 聊天面板最大占窗口55%
+
+function loadDividerPos(): number {
+  try {
+    const v = localStorage.getItem(DIVIDER_KEY);
+    if (v) {
+      const n = parseInt(v, 10);
+      if (Number.isFinite(n) && n >= MIN_CHAT_WIDTH) return n;
+    }
+  } catch { /* ignore */ }
+  return DEFAULT_CHAT_WIDTH;
+}
+
+const chatWidth = ref(loadDividerPos());
+const isDraggingDivider = ref(false);
+
+function onDividerMousedown(e: MouseEvent) {
+  e.preventDefault();
+  isDraggingDivider.value = true;
+  const startX = e.clientX;
+  const startW = chatWidth.value;
+
+  function onMove(ev: MouseEvent) {
+    const delta = startX - ev.clientX;
+    const newW = Math.max(MIN_CHAT_WIDTH, Math.min(
+      Math.round(window.innerWidth * MAX_CHAT_RATIO),
+      startW + delta
+    ));
+    chatWidth.value = newW;
+  }
+
+  function onUp() {
+    isDraggingDivider.value = false;
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("mouseup", onUp);
+    try { localStorage.setItem(DIVIDER_KEY, String(chatWidth.value)); } catch { /* ignore */ }
+  }
+
+  document.addEventListener("mousemove", onMove);
+  document.addEventListener("mouseup", onUp);
+}
+
+function onChatSend(_text: string) {
+  // Slash 命令和表情切换现在由 ChatPanel 内部处理 (slash/ 系统)
+}
+
+/** 切换会话 */
+async function onSessionSwitch(session: { id: string; name: string }) {
+  log.info("切换到会话:", session.id, session.name)
+  try {
+    await switchToSession(session.id);
+    log.info("会话已切换完成:", session.id)
+  } catch (e) {
+    log.error("切换会话失败:", session.id, e)
+  }
+}
+
+/** 新建会话 */
+async function onSessionNew() {
+  await createNewSession();
+  // ★ 等待 Vue 处理完 chatHistory 清空，确保 UI 不会暂留旧数据
+  await nextTick();
+  tabsRef.value?.loadSessions();
+  tabsRef.value?.refreshHistory();
+  initWelcome("Pちゃん！你终于来了！今天也要一直在一起哦～♡");
+}
+
+/** × 关闭标签（只从列表移除，不删文件） */
+async function onSessionClose(sessionId: string) {
+  removeSession(sessionId)
+  const remaining = getSessions()
+  if (remaining.length === 0) {
+    await createNewSession()
+    initWelcome("Pちゃん！你终于来了！今天也要一直在一起哦～♡")
+  } else if (getActiveSessionId() === sessionId || getActiveSessionId() === "") {
+    await switchToSession(remaining[0].id)
+  }
+  tabsRef.value?.loadSessions()
+  tabsRef.value?.refreshHistory()
+}
+
+/** 🗑 历史面板删除文件 */
+async function onDeleteFile(filename: string) {
+  console.log("[App] onDeleteFile:", filename)
+  try {
+    await MemoryService.deleteSessionFile(filename)
+    // 清理 chat.ts 列表
+    let sid = ""
+    const m = filename.match(/^(session-\d{8}-\d{6})-.+\.md$/)
+    if (m) sid = m[1]
+    else {
+      const old = filename.match(/^(\d{8}\d{2}:\d{2}:\d{2})-.+\.md$/)
+      if (old) sid = `session-${old[1].replace(/:/g, "")}`
+    }
+    if (sid) {
+      removeSession(sid)
+      // ★ 如果删除的是当前活跃会话，切换到第一个剩余会话
+      if (getActiveSessionId() === sid || getActiveSessionId() === "") {
+        const remaining = getSessions()
+        if (remaining.length > 0) {
+          await switchToSession(remaining[0].id)
+        } else {
+          await createNewSession()
+          initWelcome("Pちゃん！你终于来了！今天也要一直在一起哦～♡")
+        }
+      }
+    }
+    console.log("[App] onDeleteFile 完成:", filename, "sid:", sid)
+  } catch (e) {
+    log.error("删除会话文件失败:", filename, e)
+    console.error("[App] onDeleteFile 异常:", e)
+  } finally {
+    tabsRef.value?.loadSessions()
+    tabsRef.value?.refreshHistory()
+  }
+}
+
+/** 📂 历史面板恢复会话 */
+async function onRestoreSession(sf: SessionFileMeta) {
+  console.log("[App] onRestoreSession:", sf.sessionId, sf.topic)
+  try {
+    // 添加到 chat.ts
+    addSession({ id: sf.sessionId, name: sf.topic || "已恢复", createdAt: sf.createdAt ? new Date(sf.createdAt).getTime() : Date.now(), messageCount: sf.rounds })
+    // 从文件加载消息
+    const turns = await MemoryService.loadSessionMessages(sf.sessionId)
+    if (turns && turns.length > 0) {
+      const msgs = turns.map(t => {
+        return t.role === "user" ? createUserMessage(t.text) : createAssistantMessage(t.text)
+      })
+      localStorage.setItem(`deskpet_chat_${sf.sessionId}`, JSON.stringify(msgs.slice(-200)))
+      console.log("[App] 恢复消息:", msgs.length, "条")
+    }
+    // ★ MemoryService.setActiveSession 由 switchToSession 内部调用，这里不重复
+    await switchToSession(sf.sessionId)
+    tabsRef.value?.loadSessions()
+    tabsRef.value?.refreshHistory()
+    console.log("[App] onRestoreSession 完成:", sf.sessionId)
+  } catch (e) {
+    log.error("恢复会话失败:", sf.sessionId, e)
+    console.error("[App] onRestoreSession 异常:", e)
+  }
 }
 
 /** 收到新消息时自动弹出（如果已收回） */
@@ -75,6 +220,8 @@ let cleanupMoved: (() => void) | null = null;
 let cleanupResized: (() => void) | null = null;
 let cleanupPreview: (() => void) | null = null;
 let cleanupSettingsSaved: (() => void) | null = null;
+let cleanupRestart: (() => void) | null = null;
+let cleanupExpression: (() => void) | null = null;
 
 // ==========================================
 // 快捷键召唤/收回
@@ -112,6 +259,7 @@ async function setWindowSize(w: number, h: number) {
 /** 程序化设置窗口位置（显式记录 lastMovedPos，避免依赖异步 onMoved 事件时序） */
 async function setWindowPos(x: number, y: number) {
   lastMovedPos.value = { x, y };
+  ignoreResizeUntil = Date.now() + 3000; // 覆盖 DPI 切换触发的 resize
   const win = getCurrentWebviewWindow();
   await win.setPosition(new LogicalPosition(x, y));
 }
@@ -119,12 +267,12 @@ async function setWindowPos(x: number, y: number) {
 /** 获取弹窗尺寸（用户设置优先，带合法性校验防止 DPI 污染数据扩散） */
 function getPopupSize(): { w: number; h: number } {
   const sz = userConfig.popupSize;
-  // 校验：超过屏幕 2 倍或小于最小值视为污染数据，回退默认
-  const maxW = (window.screen.availWidth || 1920) * 2;
-  const maxH = (window.screen.availHeight || 1080) * 2;
+  // 校验：超过屏幕 60% 或小于最小值视为污染数据，回退默认 730×450
+  const maxW = Math.round((window.screen.availWidth || 1920) * 0.6);
+  const maxH = Math.round((window.screen.availHeight || 1080) * 0.6);
   if (sz.w < 50 || sz.h < 50 || sz.w > maxW || sz.h > maxH) {
-    log.warn("弹窗尺寸数据异常，回退默认 448x272 | saved:", sz);
-    return { w: 448, h: 272 };
+    log.warn("弹窗尺寸数据异常，回退默认 730x450 | saved:", sz);
+    return { w: 730, h: 450 };
   }
   return sz;
 }
@@ -365,15 +513,23 @@ onMounted(async () => {
     lastMovedPos.value = { x: fp.x, y: fp.y };
   }
 
-  // 初始化人格模块
-  initRegistry();
+  // ── 统一初始化（Memory + 人格 + 工具 + 会话扫描恢复 + Debug）──
+  await initApp("Pちゃん！你终于来了！今天也要一直在一起哦～♡");
+  // ★ 同步 SessionTabs（SessionTabs mount 可能先于 init 完成）
+  tabsRef.value?.loadSessions();
+
+  // 开发模式加载测试套件
+  if (import.meta.env.DEV) {
+    import("@/services/test").then(() => {
+      log.info("🧪 测试套件已就绪 — 输入 __test.all() 运行所有测试")
+    })
+  }
 
   invoke("set_monitor_config", {
     pollingIntervalMs: desktopConfig.pollingIntervalMs,
     pauseExtraMs: desktopConfig.pauseExtraMs,
     waitTimeoutMs: desktopConfig.waitTimeoutMs,
   }).catch(() => {});
-  await initChat("Pちゃん！你终于来了！今天也要一直在一起哦～♡");
   playEventSound("welcome");
   cleanupListener = await initWindowListener(streamRef, winSize);
 
@@ -444,11 +600,32 @@ onMounted(async () => {
   try {
     cleanupSettingsSaved = await listen("deskpet-settings-saved", async () => {
       refreshUserCache();
-      // 重注册快捷键（用户可能在设置面板修改了快捷键）
+      const { initDebug } = await import("@/services/debug");
+      await initDebug();
       await unregisterShortcut();
       await registerShortcut();
-      log.debug("配置缓存已刷新 + 快捷键已重注册");
+      log.debug("配置缓存已刷新 + Debug状态已更新 + 快捷键已重注册");
     });
+  } catch { /* ignore */ }
+
+  // 设置面板 → 请求重启应用
+  try {
+    cleanupRestart = await listen("deskpet-restart", async () => {
+      log.info("收到重启请求，正在退出...")
+      // 关闭所有窗口让应用退出（用户需手动重启）
+      const { getAllWebviewWindows } = await import("@tauri-apps/api/webviewWindow")
+      const windows = await getAllWebviewWindows()
+      for (const w of windows) {
+        try { await w.close() } catch { /* ignore */ }
+      }
+    })
+  } catch { /* ignore */ }
+
+  // ── 人格效果事件：expression → StreamView 表情（实时，贯穿 AgentLoop）──
+  try {
+    cleanupExpression = await listen<{ expression: string }>("deskpet-expression", (event) => {
+      streamRef.value?.setExpression(event.payload.expression)
+    })
   } catch { /* ignore */ }
 
   // 点击任意位置关闭右键菜单
@@ -481,6 +658,8 @@ onUnmounted(() => {
   if (cleanupResized) cleanupResized();
   if (cleanupPreview) cleanupPreview();
   if (cleanupSettingsSaved) cleanupSettingsSaved();
+  if (cleanupRestart) cleanupRestart();
+  if (cleanupExpression) cleanupExpression();
   document.removeEventListener("click", hideCtxMenu);
   unregisterShortcut();
 });
@@ -495,7 +674,22 @@ onUnmounted(() => {
         <img id="bg" src="/assets/windows/operation_base.png" alt="" />
         <StreamView ref="streamRef" />
       </div>
-      <div id="chat-slot" :class="{ closed: !showChat }">
+      <!-- 可拖动分割线 -->
+      <div
+        id="divider"
+        :class="{ dragging: isDraggingDivider }"
+        @mousedown="onDividerMousedown"
+      ></div>
+      <div id="chat-slot" :class="{ closed: !showChat, dragging: isDraggingDivider }" :style="showChat ? { width: chatWidth + 'px' } : {}">
+        <SessionTabs
+          v-show="showChat"
+          ref="tabsRef"
+          @switch="onSessionSwitch"
+          @new="onSessionNew"
+          @close-tab="onSessionClose"
+          @delete-file="onDeleteFile"
+          @restore-session="onRestoreSession"
+        />
         <ChatPanel v-show="showChat" ref="chatRef" @send="onChatSend" @request-popup="onRequestPopup" />
       </div>
     </div>

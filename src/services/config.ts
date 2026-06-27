@@ -17,13 +17,26 @@ interface UserSettings {
   autoPopupOnMessage: boolean;
 }
 
+export interface BuiltinMcpServer {
+  enabled: boolean
+  command: string
+  args: string[]
+  env?: Record<string, string>
+  description?: string
+}
+
 interface Config {
+  mode: {
+    assistant: boolean;
+  };
   ai: {
     provider: string;
     endpoint: string;
     apiKey: string;
     model: string;
-    maxContextMessages: number;
+    contextMaxTokens: number;
+    thinkingEffort: string;
+    thinkingBudget: { low: number; medium: number; high: number };
     defaultSystemPrompt: string;
     fallbackReplies: string[];
   };
@@ -60,6 +73,37 @@ interface Config {
   logging: {
     level: "debug" | "info" | "warn" | "error";
   };
+  loop: {
+    maxRetry: number;
+    maxToolCallsPerTurn: number;
+    toolTimeoutMs: number;
+    turnTimeoutMs: number;
+    streamEnabled: boolean;
+    contextCompactAt: number;
+  };
+  tools: {
+    bash: {
+      enabled: boolean;
+      whitelist: string[];
+    };
+    file: {
+      enabled: boolean;
+      writeEnabled: boolean;
+    };
+    mcp: {
+      enabled: boolean;
+      servers: Record<string, unknown>[];
+      builtin: Record<string, BuiltinMcpServer>;
+    };
+    skill: {
+      enabled: boolean;
+      skills: { raw: string }[];
+    };
+  };
+  safety: {
+    mode: string;
+    sessionTrustEnabled: boolean;
+  };
   user: UserSettings;
 }
 
@@ -73,7 +117,7 @@ const STORAGE_KEY = "deskpet_user_settings";
 const USER_DEFAULTS: UserSettings = {
   popupMode: cfg.user?.popupMode || "cursor",
   fixedPosition: null,
-  popupSize: cfg.user?.popupSize || { w: 448, h: 272 },
+  popupSize: cfg.user?.popupSize || { w: 730, h: 450 },
   shortcutKey: cfg.user?.shortcutKey || cfg.shortcut?.key || "P",
   shortcutMacModifiers: cfg.user?.shortcutMacModifiers || cfg.shortcut?.macModifiers || ["Control", "Command"],
   shortcutWinModifiers: cfg.user?.shortcutWinModifiers || cfg.shortcut?.winModifiers || ["Control", "Alt"],
@@ -111,12 +155,18 @@ export function refreshUserCache(): void {
 }
 
 /** 运行时用户设置（可读写，持久化 localStorage） */
+
+/** 获取弹窗尺寸：优先返回用户手动调整后持久化的尺寸，未调整过则回退 CONFIG.yaml 默认值 */
+export function getDefaultSize(): { w: number; h: number } {
+  return userConfig.popupSize;
+}
+
 export const userConfig = {
   get popupMode() { return getUser().popupMode; },
   set popupMode(v: "cursor" | "fixed") { const u = loadUserOverrides(); u.popupMode = v; _cache = u; saveUserOverrides(u); },
   get fixedPosition() { const p = getUser().fixedPosition; return (p && Math.abs(p.x) > 5000) ? null : (p && Math.abs(p.y) > 5000) ? null : p; },
   set fixedPosition(v: { x: number; y: number } | null) { const u = loadUserOverrides(); u.fixedPosition = v; _cache = u; saveUserOverrides(u); },
-  get popupSize() { const sz = getUser().popupSize; return (!sz || sz.w > 4000 || sz.h > 4000 || sz.w < 50 || sz.h < 50) ? { w: 448, h: 272 } : sz; },
+  get popupSize() { const sz = getUser().popupSize; return (!sz || sz.w > 2000 || sz.h > 2000 || sz.w < 50 || sz.h < 50) ? { w: 730, h: 450 } : sz; },
   set popupSize(v: { w: number; h: number }) { const u = loadUserOverrides(); u.popupSize = v; _cache = u; saveUserOverrides(u); },
   get shortcutKey() { return getUser().shortcutKey; },
   set shortcutKey(v: string) { const u = loadUserOverrides(); u.shortcutKey = v; _cache = u; saveUserOverrides(u); },
@@ -198,7 +248,15 @@ const _ai = {
   get endpoint() { return overrideOr("ai.endpoint", cfg.ai.endpoint || import.meta.env.VITE_API_ENDPOINT || ""); },
   get apiKey() { return overrideOr("ai.apiKey", cfg.ai.apiKey || import.meta.env.VITE_API_KEY || ""); },
   get model() { return overrideOr("ai.model", cfg.ai.model || import.meta.env.VITE_MODEL || "deepseek-chat"); },
-  get maxContextMessages() { return overrideOr("ai.maxContextMessages", cfg.ai.maxContextMessages || 20); },
+  get contextMaxTokens() { return overrideOr("ai.contextMaxTokens", cfg.ai.contextMaxTokens ?? 16000); },
+  get thinkingEffort() { return overrideOr("ai.thinkingEffort", cfg.ai.thinkingEffort || "auto") as import("@/services/agent/types").ThinkingEffort; },
+  get thinkingBudget() {
+    return {
+      low: overrideOr("ai.thinkingBudget.low", cfg.ai.thinkingBudget?.low ?? 1000),
+      medium: overrideOr("ai.thinkingBudget.medium", cfg.ai.thinkingBudget?.medium ?? 4000),
+      high: overrideOr("ai.thinkingBudget.high", cfg.ai.thinkingBudget?.high ?? 16000),
+    };
+  },
   get defaultSystemPrompt() { return overrideOr("ai.defaultSystemPrompt", cfg.ai.defaultSystemPrompt || "你叫糖糖，是一个在直播的虚拟主播。"); },
   get fallbackReplies() { return overrideOr("ai.fallbackReplies", cfg.ai.fallbackReplies || ["嗯嗯～"]); },
   /** 是否已配置 API */
@@ -279,8 +337,46 @@ export const personalityConfig = {
 };
 
 // ==========================================
-// 开发环境打印
+// 模式配置
 // ==========================================
+export const modeConfig = {
+  get assistant() { return overrideOr("mode.assistant", cfg.mode?.assistant ?? false); },
+};
+
+// ==========================================
+// Loop 配置
+// ==========================================
+export const loopConfig = {
+  get maxRetry() { return overrideOr("loop.maxRetry", cfg.loop?.maxRetry ?? 3); },
+  get maxToolCallsPerTurn() { return overrideOr("loop.maxToolCallsPerTurn", cfg.loop?.maxToolCallsPerTurn ?? 5); },
+  get toolTimeoutMs() { return overrideOr("loop.toolTimeoutMs", cfg.loop?.toolTimeoutMs ?? 30000); },
+  get turnTimeoutMs() { return overrideOr("loop.turnTimeoutMs", cfg.loop?.turnTimeoutMs ?? 120000); },
+  get streamEnabled() { return overrideOr("loop.streamEnabled", cfg.loop?.streamEnabled ?? true); },
+  get contextCompactAt() { return overrideOr("loop.contextCompactAt", cfg.loop?.contextCompactAt ?? 0.95); },
+};
+
+// ==========================================
+// 工具系统配置
+// ==========================================
+export const toolsConfig = {
+  get bashEnabled() { return overrideOr("tools.bash.enabled", cfg.tools?.bash?.enabled ?? true); },
+  get bashWhitelist() { return overrideOr("tools.bash.whitelist", cfg.tools?.bash?.whitelist || ["ls", "cat", "head", "tail", "grep", "find", "which", "echo", "pwd", "date", "whoami", "uname", "df", "du", "ps"]); },
+  get fileEnabled() { return overrideOr("tools.file.enabled", cfg.tools?.file?.enabled ?? true); },
+  get fileWriteEnabled() { return modeConfig.assistant && (overrideOr("tools.file.writeEnabled", cfg.tools?.file?.writeEnabled ?? false)); },
+  get mcpEnabled() { return modeConfig.assistant && (overrideOr("tools.mcp.enabled", cfg.tools?.mcp?.enabled ?? false)); },
+  get mcpServers() { return overrideOr("tools.mcp.servers", cfg.tools?.mcp?.servers || []); },
+  get builtinMcpServers() { return overrideOr("tools.mcp.builtin", cfg.tools?.mcp?.builtin || {}) as Record<string, BuiltinMcpServer>; },
+  get skillEnabled() { return modeConfig.assistant && (overrideOr("tools.skill.enabled", cfg.tools?.skill?.enabled ?? false)); },
+  get skillSkills() { return overrideOr("tools.skill.skills", cfg.tools?.skill?.skills || []) as { raw: string }[]; },
+};
+
+// ==========================================
+// 安全配置
+// ==========================================
+export const safetyConfig = {
+  get mode() { return overrideOr("safety.mode", cfg.safety?.mode || "tell_me"); },
+  get sessionTrustEnabled() { return overrideOr("safety.sessionTrustEnabled", cfg.safety?.sessionTrustEnabled ?? true); },
+};
 if (import.meta.env.DEV) {
   console.log("[Config] 已加载 CONFIG.yaml | AI:", aiConfig.provider, "| endpoint:", aiConfig.endpoint);
 }

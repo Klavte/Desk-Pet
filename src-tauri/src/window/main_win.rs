@@ -24,7 +24,7 @@ pub fn create_main_window(app: &tauri::AppHandle) -> tauri::Result<tauri::Webvie
     Ok(window)
 }
 
-/// iTerm 风格窗口增强：MainMenu 层级 + 全屏悬浮 + 所有桌面
+/// 窗口增强：最高层级 + 全屏悬浮 + 所有桌面（双端）
 pub fn enhance_to_iterm_style(window: &tauri::WebviewWindow) {
     #[cfg(target_os = "macos")]
     {
@@ -33,17 +33,24 @@ pub fn enhance_to_iterm_style(window: &tauri::WebviewWindow) {
         if let Ok(ns_win) = window.ns_window() {
             let ns_win = ns_win as *mut Object;
             unsafe {
-                // NSMainMenuWindowLevel = 24 (iTerm 常用层级)
-                let _: () = msg_send![ns_win, setLevel: 24isize];
-                // canJoinAllSpaces(1) | fullScreenAuxiliary(1<<17) | stationary(1<<4) | ignoresCycle(1<<5) | transient(1<<3)
+                // NSScreenSaverWindowLevel = 1000，覆盖所有窗口
+                let _: () = msg_send![ns_win, setLevel: 1000isize];
                 let behavior: usize = (1 << 0) | (1 << 17) | (1 << 4) | (1 << 5) | (1 << 3);
                 let _: () = msg_send![ns_win, setCollectionBehavior: behavior];
-                // 强制置顶
                 let _: () = msg_send![ns_win, orderFrontRegardless];
             }
         }
-        // 激活 App（全屏 Space 关键）
         let ns_app: *mut Object = unsafe { msg_send![objc::class!(NSApplication), sharedApplication] };
         let _: () = unsafe { msg_send![ns_app, activateIgnoringOtherApps: true] };
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        use windows_sys::Win32::UI::WindowsAndMessaging::{SetWindowPos, HWND_TOPMOST, SWP_NOMOVE, SWP_NOSIZE};
+        if let Ok(hwnd) = window.hwnd() {
+            unsafe {
+                SetWindowPos(hwnd as _, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+            }
+        }
     }
 }

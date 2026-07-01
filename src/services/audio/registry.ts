@@ -1047,7 +1047,8 @@ const ASSIGNMENTS_KEY = "deskpet_sound_assignments";
 function loadAssignments(): Record<string, string> {
   try {
     return JSON.parse(localStorage.getItem(ASSIGNMENTS_KEY) || "{}");
-  } catch {
+  } catch (e) {
+    console.warn("[Audio] 音效分配数据解析失败，已重置:", e);
     return {};
   }
 }

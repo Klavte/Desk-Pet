@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { invoke } from "@tauri-apps/api/core";
-import { notificationConfig } from "@/services/config";
+
+const AUTO_CLOSE_MS = 8000;
 
 const closing = ref(false);
 const visible = ref(true);
@@ -32,7 +33,7 @@ function handleClick() {
 }
 
 onMounted(() => {
-  setTimeout(close, notificationConfig.autoCloseMs);
+  setTimeout(close, AUTO_CLOSE_MS);
 });
 </script>
 

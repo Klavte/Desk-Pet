@@ -109,7 +109,7 @@ loop:
   maxToolCallsPerTurn: 5       # 单轮最多工具调用链长度
   toolTimeoutMs: 30000         # 单个工具执行超时（毫秒）
   turnTimeoutMs: 120000        # 整轮总超时（毫秒）
-  streamEnabled: true          # 是否流式输出
+  streamEnabled: false          # 是否流式输出（默认关闭）
   contextCompactAt: 0.95       # 上下文利用率达95%触发摘要压缩
 
 # ── 工具系统 ──

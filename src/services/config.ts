@@ -295,15 +295,6 @@ export const memoryConfig = {
 };
 
 // ==========================================
-// 通知弹窗配置（已移除 — macOS 系统通知无法实现）
-// 保留空壳避免引用报错，始终返回 false/0
-// ==========================================
-export const notificationConfig = {
-  get enabled() { return false; },
-  get autoCloseMs() { return 8000; },
-};
-
-// ==========================================
 // 桌面后端配置（Rust 轮询参数）
 // ==========================================
 export const desktopConfig = {

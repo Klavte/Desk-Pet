@@ -2,7 +2,7 @@
 
 > 像素风桌面虚拟主播 — 常驻桌面，能聊天、能用工具、能看你窗口、能主动搭话。
 >
-> ⚠️ **当前状态：Phase 1+2+3 完成（安全确认 UI 已实现），Phase 4 大部分完成（仅 Plan 模型预判/SSE 待实现）**。
+> ⚠️ **当前状态：Phase 1-4 完成，Plan LLM 驱动已实现，剪贴板/内存三端真实实现，流式可配置**。
 
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-blue)](https://github.com/Klavte/Desk-Pet)
 [![Tauri](https://img.shields.io/badge/Tauri-v2-ffc131)](https://tauri.app)
@@ -18,7 +18,7 @@
 - **AI 聊天** — 人格卡驱动，Ageng Loop 多轮工具调用，兼容 OpenAI / DeepSeek / Ollama 等
 - **工具系统** — AI 可调用工具：读文件/列目录/搜索文件/系统信息/Bash/HTTP GET
 - **助手模式** — 解锁写文件/全量Bash/打开应用/剪贴板/MCP 服务器/Skill 编排/子代理
-- **Agent Loop** — 多轮工具调用循环（每轮携带完整工具集），思考强度手动选择（全局默认+会话覆盖），上下文自动压缩
+- **Agent Loop** — 多轮工具调用循环，思考强度可选，流式输出可开关（默认关闭），上下文自动压缩
 - **人格中间件** — 横切所有 Agent 阶段的角色化表达（表情/音效/角色话术）
 - **窗口感知** — 监控前台窗口标题，停留一定时间后 AI 主动搭话
 - **快捷键召唤** — 全局快捷键弹出/收回，弹性缩放动画
@@ -51,8 +51,8 @@
 | 写文件 (`file.write`) | ❌ | ✅ |
 | 全量 Bash | ❌ | ✅ |
 | 打开应用 | ❌ | ✅ |
-| 剪贴板操作 | ❌ | ✅ |
-| MCP (Mock) | ❌ | ✅ (内置5个 + 自定义) |
+| 剪贴板操作 | ❌ | ✅ (三端) |
+| MCP | ❌ | ✅ (内置5个 + 自定义) |
 | Skill (基础) | ❌ | ✅ (子循环执行) |
 | 子代理 (agent.spawn) | ❌ | ✅ (fork/team 双模式) |
 | 安全确认弹窗 | ❌ | ✅ (四级+三策略) |
@@ -63,15 +63,16 @@
 
 | 项目 | 状态 | 说明 |
 |------|------|------|
-| 助手模式完整安全 | ✅ Phase 3 | 四级安全+三策略(全放行/告知/全确认)+确认弹窗UI+会话覆盖 |
-| agent.spawn 子代理 | ✅ Phase 3 | fork/team 双模式，子循环最多 3 轮，90s 超时 |
-| MCP 真实连接 | ✅ Phase 4 | stdio 传输 + JSON-RPC + Rust 桥接 + 工具发现注册 + 内置5个MCP |
-| Skill 编排执行 | ✅ Phase 4 | Runner 子循环调用 Local/MCP 工具 + import.meta.glob 加载 |
-| Plan AI 模型预判 | ⚠️ Phase 4 | 模型预判拆解步骤（当前为关键词桩） |
-| 流式输出 | ❌ 未实现 | Provider 非流式 fetch，UI 无 SSE 处理 |
+| 助手模式完整安全 | ✅ Phase 3 | 四级安全+三策略+确认弹窗UI+会话覆盖 |
+| agent.spawn 子代理 | ✅ Phase 3 | fork/team 双模式 |
+| MCP 真实连接 | ✅ Phase 4 | stdio 传输 + JSON-RPC + Rust 桥接 + 内置5个MCP |
+| Skill 编排执行 | ✅ Phase 4 | Runner 子循环调用 Local/MCP 工具 |
+| Plan AI 模型预判 | ✅ Phase 4 | LLM 驱动任务拆解，复杂度门禁+轻量调用 |
+| 流式输出 | ⚙️ 可配置 | 默认关闭，设置页可开关 |
+| 剪贴板操作 | ✅ 三端 | macOS(pbpaste/pbcopy) + Windows(PowerShell) + Linux(xclip) |
+| 内存信息 | ✅ 三端 | macOS(vm_stat) + Windows(GlobalMemoryStatusEx) + Linux(/proc/meminfo) |
 | MCP SSE 传输 | ❌ 未实现 | 仅 stdio，SSE 远程连接待实现 |
 | 系统通知 | ❌ 已移除 | macOS 未签名构建下无法实现 |
-| ⚠️ 工具/Skill/安全 测试 | ⚠️ 未充分 | 功能已实现，集成测试尚未覆盖全路径 |
 
 ---
 
@@ -111,9 +112,12 @@ cp CONFIG-DEV.yaml.example CONFIG-DEV.yaml
 Desk-Pet/
 ├── CONFIG.yaml              # 全局默认配置
 ├── CONFIG-DEV.yaml          # 本地开发配置 (不入 git)
-├── DES.md                   # 设计文档（玩法/机制）
 ├── CLAUDE.md                # AI 开发指引（规范/构建/调试）
-├── 架构方案.md               # v2 架构方案
+├── docs/                    # ★ 文档目录
+│   ├── DES.md               # 设计文档（玩法/机制）
+│   ├── DESIGN_ORIGIN.md     # 原始设计草案
+│   ├── 架构方案.md            # v2 架构方案
+│   └── PRD-可配置静态资源管理.md
 │
 ├── memory/                  # 长期记忆（文件注册表）
 │   ├── MEMORY.md            # ★ 长期记忆索引 (→ CANDY/User/Outside/独立条目)
@@ -212,6 +216,7 @@ Desk-Pet/
 | 快捷键 | 录制自定义组合键 | 即时 |
 | 音效 | 29 个音效，每事件独立选择 | 即时 |
 | 日志 | debug/info/warn/error | 即时 |
+| 流式输出 | 启用/关闭（默认关闭，节省 token） | 即时 |
 | 工具配置 | Bash 白名单编辑 / 文件写开关 | 即时 |
 | MCP 配置 | 启用开关 / 服务器列表增删改（stdio/sse）/ JSON 导入导出 / 已配置 vs 已激活区分 | 需重启 |
 | Skill 配置 | 启用开关 / 已配置列表 / 上传 .md 添加 / 删除 / 已配置 vs 已激活区分 | 需重启 |
@@ -247,15 +252,16 @@ Desk-Pet/
 | AI 聊天 / Agent Loop / 工具调用 | ✅ | 全平台 |
 | 文件/系统/HTTP 工具 | ✅ | 全平台 |
 | Windows 模拟器 | ✅ | 全平台 |
-| 窗口标题监控 | ✅ | GetForegroundWindow（无需额外权限） |
+| 窗口标题监控 | ✅ | GetForegroundWindow + 进程名回退 |
 | AI 主动搭话 | ✅ | 依赖窗口监控 |
 | 全局快捷键召唤 | ✅ | global-shortcut 插件 |
-| 桌面悬浮 | ✅ | alwaysOnTop |
+| 桌面悬浮 | ✅ | HWND_TOPMOST + alwaysOnTop |
 | 系统托盘 | ✅ | TrayIconBuilder |
 | 任务栏点击弹出 | ✅ | 窗口隐藏时点击任务栏图标弹出 |
 | 设置页面 | ✅ | SettingsPanel |
 | 人格热插拔 | ✅ | 设置面板即时切换 |
-| 系统通知 | ⚠️ | 待验证（需签名构建测试） |
+| 剪贴板操作 | ✅ | PowerShell Get/Set-Clipboard |
+| 内存信息 | ✅ | GlobalMemoryStatusEx Win32 API |
 
 ---
 
@@ -274,9 +280,10 @@ Desk-Pet/
 
 ## 📖 文档
 
-- [架构方案.md](架构方案.md) — v2 完整架构方案
-- [DES.md](DES.md) — 设计文档，完整玩法/机制说明
-- [CLAUDE.md](CLAUDE.md) — AI 开发指引，代码规范/构建/调试
+- [docs/架构方案.md](docs/架构方案.md) — v2 完整架构方案
+- [docs/DES.md](docs/DES.md) — 设计文档，完整玩法/机制说明
+- [docs/DESIGN_ORIGIN.md](docs/DESIGN_ORIGIN.md) — 原始设计草案
+- [CLAUDE.md](CLAUDE.md) — AI 开发指引
 
 ---
 

@@ -20,18 +20,6 @@ interface WindowChangePayload {
   is_pet_visible: boolean
 }
 
-// ═══════════════════════════════════════════════════════════════
-// sendToastNotification — 系统通知（已禁用）
-// macOS: tauri-plugin-notification 需代码签名才可工作；
-//        osascript display notification 在 Tauri WebView 沙箱
-//        下无法触发用户通知中心，均不可用。
-// Windows: tauri-plugin-notification 理论上可用但未充分测试。
-// 保留函数签名和调用点，待后续方案成熟后启用。
-// ═══════════════════════════════════════════════════════════════
-export async function sendToastNotification(body: string): Promise<void> {
-  void body
-}
-
 export async function initWindowListener(
   streamRef: Ref<StreamViewRef | null>,
   winSize: Ref<{ w: number; h: number }>,

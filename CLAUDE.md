@@ -32,10 +32,13 @@ cd src-tauri && cargo check   # Rust 编译检查
 
 ```
 Desk-Pet/
+├── docs/                         # ★ 文档目录
+│   ├── DES.md                    # 设计文档
+│   ├── DESIGN_ORIGIN.md          # 原始草案
+│   ├── 架构方案.md                 # v2 架构方案
+│   └── PRD-可配置静态资源管理.md    # 静态资源 PRD
 ├── CONFIG.yaml                  # 全局默认配置
 ├── CONFIG-DEV.yaml              # 本地开发配置 (不入 git)
-├── DES.md                       # 设计文档
-├── 架构方案.md                   # v2 架构方案
 ├── .gitignore
 ├── index.html / notification.html / settings.html
 ├── vite.config.ts               # Vite + YAML 插件 + @ 别名
@@ -67,7 +70,7 @@ Desk-Pet/
 │   │   │   ├── parser.ts        # AI输出解析 (function_call/纯文本/思考)
 │   │   │   ├── session.ts       # 会话状态机 (WAITING→PRE→GENERATING→EXECUTING)
 │   │   │   ├── thinking.ts      # ★ 思考强度决策 (auto/low/medium/high)
-│   │   │   ├── plan.ts          # ★ Plan 步骤 (助手模式复杂任务预判拆解)
+│   │   │   ├── plan.ts          # ★ Plan 步骤 (LLM驱动, 复杂任务拆解)
 │   │   │   └── slash/           # ★ Slash 命令系统
 │   │   │       ├── index.ts / types.ts / registry.ts
 │   │   │       └── commands/    # help/clear/memory/expression/win
@@ -109,7 +112,7 @@ Desk-Pet/
 │       ├── macros/ / monitor/ / window/
 │       └── commands/
 │           ├── cursor.rs / monitor_ctl.rs / sim.rs / logging.rs
-│           ├── tool_exec.rs     # ★ Bash/文件/系统/剪贴板/应用
+│           ├── tool_exec.rs     # ★ Bash/文件/系统/剪贴板/应用 (三端完整)
 │           ├── memory_cmd.rs    # ★ 文件系统操作 (init/list/delete sessions)
 │           └── mcp_bridge.rs    # ★ MCP stdio 桥接 (spawn/send/kill)【已实现】
 │
@@ -270,10 +273,12 @@ Dock点击 → onFocusChanged → handleDockPopup() → 屏幕中央淡入
 | AI 主动搭话 | ✅ | 依赖窗口监控 |
 | 系统通知 | ❌ 已移除 | macOS 未签名构建无法实现 |
 | 全局快捷键召唤 | ✅ | global-shortcut 插件 |
-| 所有桌面悬浮 | ✅ | visibleOnAllWorkspaces + alwaysOnTop |
+| 所有桌面悬浮 | ✅ | NSScreenSaverWindowLevel(1000) + canJoinAllSpaces |
 | Dock 点击弹出 | ✅ | onFocusChanged → 屏幕中央淡入 |
 | 系统托盘 | ✅ | TrayIconBuilder |
 | 设置页面 | ✅ | SettingsPanel — 含模式切换 |
+| 剪贴板 | ✅ | pbpaste/pbcopy |
+| 内存信息 | ✅ | vm_stat 精确计算 |
 
 ---
 

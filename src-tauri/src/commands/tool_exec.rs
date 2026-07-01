@@ -158,7 +158,7 @@ fn get_memory_info() -> (u64, u64) {
     #[cfg(target_os = "macos")]
     {
         use std::process::Command;
-        // macOS: 用 sysctl 获取总内存
+        // 总内存: sysctl hw.memsize
         let total = Command::new("sysctl")
             .args(["-n", "hw.memsize"])
             .output()
@@ -167,31 +167,81 @@ fn get_memory_info() -> (u64, u64) {
             .and_then(|s| s.trim().parse::<u64>().ok())
             .unwrap_or(0);
 
-        // macOS: 用 vm_stat 获取已用内存（近似）
-        let used = Command::new("sysctl")
-            .args(["-n", "hw.memsize"])
-            .output()
-            .ok()
-            .and_then(|o| String::from_utf8(o.stdout).ok())
-            .and_then(|_| {
-                // 简化版：假设使用了 60%
-                Some(total / 10 * 6)
-            })
-            .unwrap_or(0);
+        // 已用内存: vm_stat 计算 (page size * (active + wired + compressed))
+        let used = {
+            let page_size = Command::new("sysctl")
+                .args(["-n", "hw.pagesize"])
+                .output()
+                .ok()
+                .and_then(|o| String::from_utf8(o.stdout).ok())
+                .and_then(|s| s.trim().parse::<u64>().ok())
+                .unwrap_or(16384);
+
+            let vm_stat = Command::new("vm_stat")
+                .output()
+                .ok()
+                .and_then(|o| String::from_utf8(o.stdout).ok())
+                .unwrap_or_default();
+
+            let mut active = 0u64;
+            let mut wired = 0u64;
+            let mut compressed = 0u64;
+            for line in vm_stat.lines() {
+                let parts: Vec<&str> = line.split(':').collect();
+                if parts.len() < 2 { continue; }
+                let key = parts[0].trim().trim_matches('"');
+                let val = parts[1].trim().trim_end_matches('.');
+                match key {
+                    "Pages active" => active = val.parse().unwrap_or(0),
+                    "Pages wired down" => wired = val.parse().unwrap_or(0),
+                    "Pages occupied by compressor" => compressed = val.parse().unwrap_or(0),
+                    _ => {}
+                }
+            }
+            (active + wired + compressed) * page_size
+        };
 
         (total, used)
     }
 
     #[cfg(target_os = "windows")]
     {
-        // Windows: 用 winapi（简化版，给个大概值）
-        (0, 0) // TODO: 实现 Windows 内存获取
+        unsafe {
+            use windows_sys::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
+            let mut mem = MEMORYSTATUSEX {
+                dwLength: std::mem::size_of::<MEMORYSTATUSEX>() as u32,
+                dwMemoryLoad: 0,
+                ullTotalPhys: 0,
+                ullAvailPhys: 0,
+                ullTotalPageFile: 0,
+                ullAvailPageFile: 0,
+                ullTotalVirtual: 0,
+                ullAvailVirtual: 0,
+                ullAvailExtendedVirtual: 0,
+            };
+            if GlobalMemoryStatusEx(&mut mem) != 0 {
+                (mem.ullTotalPhys, mem.ullTotalPhys - mem.ullAvailPhys)
+            } else {
+                (0, 0)
+            }
+        }
     }
 
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
         // Linux: /proc/meminfo
-        (0, 0)
+        let read_mem = |key: &str| -> Option<u64> {
+            std::fs::read_to_string("/proc/meminfo").ok()
+                .and_then(|s| s.lines()
+                    .find(|l| l.starts_with(key))
+                    .and_then(|l| l.split_whitespace().nth(1))
+                    .and_then(|v| v.parse::<u64>().ok())
+                )
+                .map(|kb| kb * 1024)
+        };
+        let total = read_mem("MemTotal:").unwrap_or(0);
+        let available = read_mem("MemAvailable:").unwrap_or(0);
+        (total, total.saturating_sub(available))
     }
 }
 
@@ -240,15 +290,32 @@ pub fn clipboard_read() -> Result<ClipboardResult, String> {
         let out = Command::new("pbpaste")
             .output()
             .map_err(|e| format!("读取剪贴板失败: {}", e))?;
-        Ok(ClipboardResult {
+        return Ok(ClipboardResult {
             text: String::from_utf8_lossy(&out.stdout).to_string(),
+        });
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        // PowerShell Get-Clipboard
+        let out = Command::new("powershell")
+            .args(["-NoProfile", "-Command", "Get-Clipboard"])
+            .output()
+            .map_err(|e| format!("读取剪贴板失败: {}", e))?;
+        Ok(ClipboardResult {
+            text: String::from_utf8_lossy(&out.stdout).trim_end_matches("\r\n").to_string(),
         })
     }
 
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
+        // Linux: xclip
+        let out = Command::new("xclip")
+            .args(["-selection", "clipboard", "-o"])
+            .output()
+            .map_err(|e| format!("读取剪贴板失败 (需要 xclip): {}", e))?;
         Ok(ClipboardResult {
-            text: String::new(),
+            text: String::from_utf8_lossy(&out.stdout).to_string(),
         })
     }
 }
@@ -262,6 +329,40 @@ pub fn clipboard_write(text: String) -> Result<ClipboardWriteResult, String> {
             .stdin(std::process::Stdio::piped())
             .spawn()
             .map_err(|e| format!("写入剪贴板失败: {}", e))?;
+
+        if let Some(mut stdin) = child.stdin.take() {
+            stdin.write_all(text.as_bytes())
+                .map_err(|e| format!("写入失败: {}", e))?;
+        }
+        child.wait().map_err(|e| format!("等待进程失败: {}", e))?;
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::io::Write;
+        // PowerShell Set-Clipboard
+        let mut child = Command::new("powershell")
+            .args(["-NoProfile", "-Command", "Set-Clipboard -Value $input"])
+            .stdin(std::process::Stdio::piped())
+            .spawn()
+            .map_err(|e| format!("写入剪贴板失败: {}", e))?;
+
+        if let Some(mut stdin) = child.stdin.take() {
+            stdin.write_all(text.as_bytes())
+                .map_err(|e| format!("写入失败: {}", e))?;
+        }
+        child.wait().map_err(|e| format!("等待进程失败: {}", e))?;
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
+    {
+        use std::io::Write;
+        // Linux: xclip
+        let mut child = Command::new("xclip")
+            .args(["-selection", "clipboard"])
+            .stdin(std::process::Stdio::piped())
+            .spawn()
+            .map_err(|e| format!("写入剪贴板失败 (需要 xclip): {}", e))?;
 
         if let Some(mut stdin) = child.stdin.take() {
             stdin.write_all(text.as_bytes())

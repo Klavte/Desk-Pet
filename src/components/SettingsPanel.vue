@@ -59,6 +59,7 @@ const aiContextMaxTokens = ref(aiConfig.contextMaxTokens);
 const aiSystemPrompt = ref(aiConfig.defaultSystemPrompt);
 const showApiKey = ref(false);
 const aiThinkingEffort = ref(aiConfig.thinkingEffort);
+const aiStreamEnabled = ref(loopConfig.streamEnabled);
 
 // ── 安全 ──
 const safetyMode = ref(safetyConfig.mode as string);
@@ -443,6 +444,7 @@ async function doSave() {
     "tools.file.writeEnabled": fileWriteEnabled.value,
     "tools.mcp.enabled": mcpEnabled.value,
     "tools.skill.enabled": skillEnabled.value,
+    "loop.streamEnabled": aiStreamEnabled.value,
   });
 
   // 同步内置 MCP 配置
@@ -606,6 +608,12 @@ onUnmounted(() => {
         </div>
         <div class="s-hint" style="font-size:9px">
           新会话默认采用此强度。会话中可在底部仪表盘临时覆盖（仅当前会话生效）。
+        </div>
+        <div class="s-field-inline" style="margin-top:4px">
+          <label class="radio-item">
+            <input type="checkbox" v-model="aiStreamEnabled" />
+            <span>启用流式输出（逐字实时显示 AI 回复）</span>
+          </label>
         </div>
       </div>
 

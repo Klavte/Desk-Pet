@@ -21,13 +21,11 @@ macro_rules! rust_log {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default();
-        let secs = now.as_secs();
+        let secs = now.as_secs() % 86400;
         let millis = now.subsec_millis();
-        // 东八区近似（用于本地开发显示）
-        let adj = (secs + 8 * 3600) % 86400;
-        let h = adj / 3600;
-        let m = (adj % 3600) / 60;
-        let s = adj % 60;
+        let h = secs / 3600;
+        let m = (secs % 3600) / 60;
+        let s = secs % 60;
         println!("[{:02}:{:02}:{:02}.{:03}] {} [Rust] {}",
             h, m, s, millis, $level, format!($($arg)*));
     };

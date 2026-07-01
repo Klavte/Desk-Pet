@@ -91,7 +91,7 @@
 - **弹出**：窗口从隐藏状态 → 先 `opacity:0` → `show()` → Rust `compute_popup_position`（Cocoa→web坐标转换+clamp+窗口增强）→ 魔法缩放动画
 - **收回**：窗口从可见状态 → 缩放缩回光标 → `hide()` 隐藏窗口 → 恢复到桌面"家"位置
 - **位置记忆**：首次收回时自动保存窗口的"家"位置，后续收回时恢复（窗口隐藏在该位置，无白窗残影）
-- **桌面悬浮**：`ActivationPolicy::Accessory` 隐藏 Dock + `MainMenu(24)` 层级 + `canJoinAllSpaces` + `fullScreenAuxiliary`（iTerm 风格）
+- **桌面悬浮**：`NSScreenSaverWindowLevel(1000)` + `canJoinAllSpaces` + `fullScreenAuxiliary` + `orderFrontRegardless`（iTerm 风格升级）
 
 ### 2.7 Dock 点击弹出 ★ 新机制
 
@@ -175,7 +175,7 @@ macOS 未签名构建下系统通知无法实现：tauri-plugin-notification 需
 - `tauri.conf.json`: `windows: []` — 清空，由 Rust 完全接管窗口创建
 - `ActivationPolicy::Accessory` — 在窗口创建**之前**设置，隐藏 Dock 图标（等效 LSUIElement=true）
 - `create_main_window` — Rust 手动创建窗口（transparent + alwaysOnTop + visibleOnAllWorkspaces）
-- `enhance_to_iterm_style` — iTerm 风格增强：`MainMenu(24)` 层级 + `canJoinAllSpaces | fullScreenAuxiliary | stationary | ignoresCycle | transient` + `orderFrontRegardless` + `activateIgnoringOtherApps`
+- `enhance_to_iterm_style` — iTerm 风格增强：`NSScreenSaverWindowLevel(1000)` 层级 + `canJoinAllSpaces | fullScreenAuxiliary | stationary | ignoresCycle | transient` + `orderFrontRegardless` + `activateIgnoringOtherApps`；Windows 端 `HWND_TOPMOST`
 - 每次 `compute_popup_position` 调用都重新增强一次，确保全屏 Space 可靠性
 - `canJoinAllSpaces` — 跟随到所有 macOS 桌面/Spaces
 - `visibleOnAllWorkspaces` + `alwaysOnTop` — Tauri 配置层面兜底
@@ -476,7 +476,7 @@ src/services/
 │   ├── parser.ts          # AI输出解析 (function_call/纯文本/思考)
 │   ├── session.ts         # 会话状态机 (WAITING→PRE→GENERATING→EXECUTING)
 │   ├── thinking.ts        # ★ 思考强度决策 (auto/low/medium/high)
-│   ├── plan.ts            # ★ Plan 步骤 (助手模式复杂任务预判拆解)【关键词桩】
+│   ├── plan.ts            # ★ Plan 步骤 (LLM驱动, 复杂任务拆解)【已实现】
 │   └── slash/             # ★ Slash 命令系统
 │       ├── index.ts / types.ts / registry.ts
 │       └── commands/      # help/clear/memory/expression/win
@@ -638,7 +638,7 @@ Rust monitor → emit("window-changed") → listener.ts
 | `maxToolCallsPerTurn` | 5 | 单轮最多工具调用链长度 |
 | `toolTimeoutMs` | 30000 | 单个工具执行超时 |
 | `turnTimeoutMs` | 120000 | 整轮总超时 |
-| `streamEnabled` | true | 是否流式输出 |
+| `streamEnabled` | false | 是否流式输出（默认关闭） |
 | `contextCompactAt` | 0.95 | 上下文利用率达95%触发摘要压缩 |
 
 #### 状态机
@@ -684,7 +684,7 @@ ToolRegistry:                      ToolRegistry 额外:
                                    └── Skill 工具 (3个)
 
 Safety: SAFE放行/其余拒绝         Safety: 四级+三策略+确认弹窗
-Plan: 不启用                       Plan: 复杂任务启用【关键词桩】
+Plan: 不启用                       Plan: 复杂任务启用【LLM驱动】
 MCP/Skill: 不加载                  MCP/Skill: 完整加载 (Mock + 真实)
 ```
 
@@ -703,11 +703,11 @@ MCP/Skill: 不加载                  MCP/Skill: 完整加载 (Mock + 真实)
 | 写文件 | ❌ | ✅ |
 | 全量 Bash | ❌ | ✅ |
 | 打开应用 | ❌ | ✅ |
-| 剪贴板操作 | ❌ | ✅ |
+| 剪贴板操作 | ❌ | ✅ (三端: macOS/Win/Linux) |
 | MCP Server | ❌ | ✅ (Mock+真实) |
 | Skill (编排) | ❌ | ✅ (子循环执行) |
 | SubAgent (agent.spawn) | ❌ | ✅ (fork/team) |
-| Plan 步骤 | ❌ | ⚠️ (关键词桩) |
+| Plan 步骤 | ❌ | ✅ (LLM驱动) |
 | 完整安全确认 UI | ❌ | ✅ (四级+三策略+确认弹窗) |
 
 ### 9.6 安全控制
@@ -890,7 +890,8 @@ sessions/                      会话目录（唯一真相源）
 | **MCP stdio 传输** | ✅ 已实现 | Tauri invoke 桥接 Rust 子进程 stdin/stdout |
 | **Rust MCP Bridge** | ✅ 已实现 | spawn/kill 子进程 + JSON-RPC 桥接 |
 | **内置 5 个 MCP** | ✅ 已实现 | Filesystem/BraveSearch/Playwright/Git/GitHub |
-| **Plan (AI模型预判)** | ⚠️ 关键词桩 | 当前做关键词→步骤映射，非AI预判 |
+| **Plan (AI模型预判)** | ✅ LLM驱动 | 复杂度门禁 + 轻量LLM调用 → 步骤注入上下文 |
+| **流式输出** | ⚙️ 可配置 | 默认关闭，设置页可切换 |
 
 ### 待实现目标
 
@@ -898,8 +899,8 @@ sessions/                      会话目录（唯一真相源）
 |:---:|------|------|
 | ~~P0~~ | ~~助手模式完整安全~~ | ✅ 已实现: checker.ts + confirm.ts + ChatPanel 弹窗 |
 | P0 | ⚠️ 工具/Skill/安全 集成测试 | 功能已实现，全路径测试未覆盖 |
-| P1 | Plan AI模型预判 | 让模型预判任务→拆解步骤（替代关键词桩） |
-| P2 | 流式输出 UI 接续 | Provider 接口已支持，UI 层 Streaming 展示 |
+| ~~P1~~ | ~~Plan AI模型预判~~ | ✅ 已实现: LLM驱动，复杂度门禁 + 轻量调用 |
+| ~~P2~~ | ~~流式输出 UI 接续~~ | ✅ 已实现: 可配置开关，默认关闭 |
 | P2 | MCP SSE 传输 | EventSource 连接方式 |
 | P3 | Agent Loop 时间本地化 | ✅ 已实现: toISOString → localTime() 全局替换 |
 

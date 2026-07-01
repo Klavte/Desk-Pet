@@ -494,8 +494,8 @@ async function testPlan() {
   section("Plan 步骤")
   const { planStep } = await import("@/services/engine/plan")
 
-  // 轻量模式不触发
-  const r1 = planStep("帮我整理桌面文件", "high", ["file_list", "file_read"])
+  // planStep 现在是 async，仅接受 userText
+  const r1 = await planStep("帮我整理桌面文件")
   ok("轻量模式不触发", !r1.triggered)
 }
 

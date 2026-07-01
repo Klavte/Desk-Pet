@@ -10,6 +10,8 @@ pub fn capture_window_title() -> String {
     #[cfg(target_os = "windows")]
     unsafe {
         use windows_sys::Win32::UI::WindowsAndMessaging::{GetForegroundWindow, GetWindowTextW};
+        use windows_sys::Win32::System::Threading::{GetWindowThreadProcessId, OpenProcess, PROCESS_QUERY_INFORMATION, PROCESS_VM_READ, CloseHandle};
+        use windows_sys::Win32::System::ProcessStatus::GetProcessImageFileNameW;
         let hwnd = GetForegroundWindow();
         let mut buf = [0u16; 1024];
         let len = GetWindowTextW(hwnd, buf.as_mut_ptr(), 1024);
@@ -17,6 +19,25 @@ pub fn capture_window_title() -> String {
             let title = String::from_utf16_lossy(&buf[..len as usize]);
             rust_debug!("窗口标题(Win): {}", &title[..title.len().min(60)]);
             return title;
+        }
+        // 回退：获取前台进程名
+        let mut pid: u32 = 0;
+        GetWindowThreadProcessId(hwnd, &mut pid);
+        if pid > 0 {
+            let h = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, 0, pid);
+            if !h.is_null() {
+                let mut name_buf = [0u16; 260];
+                let name_len = GetProcessImageFileNameW(h, name_buf.as_mut_ptr(), 260);
+                CloseHandle(h);
+                if name_len > 0 {
+                    let full_path = String::from_utf16_lossy(&name_buf[..name_len as usize]);
+                    if let Some(name) = std::path::Path::new(&full_path).file_name() {
+                        let n = name.to_string_lossy().trim_end_matches(".exe").to_string();
+                        rust_debug!("进程名(Win): {}", &n[..n.len().min(40)]);
+                        return n;
+                    }
+                }
+            }
         }
     }
 

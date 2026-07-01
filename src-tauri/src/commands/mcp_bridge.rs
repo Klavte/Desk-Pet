@@ -13,10 +13,6 @@ use tauri::State;
 /// 托管 MCP 子进程
 struct McpProcess {
     child: Child,
-    #[allow(dead_code)]
-    transport: String, // "stdio"
-    #[allow(dead_code)]
-    name: String,
 }
 
 /// 全局 MCP 进程池
@@ -83,11 +79,7 @@ pub fn mcp_spawn(
 
     pool.insert(
         server_id.clone(),
-        McpProcess {
-            child,
-            transport,
-            name: name.clone(),
-        },
+        McpProcess { child },
     );
 
     println!("[INFO] [Rust] MCP 进程已启动: {} ({} {})", server_id, command, args.join(" "));

@@ -57,8 +57,8 @@ export async function runAgentLoop(input: AgentLoopInput): Promise<AgentLoopOutp
   const thinkingEffort = getEffectiveThinkingEffort()
   const ctx = buildContext({ recentMessages: chatMessages, userText, unansweredCount, thinkingEffort, isActiveMessage })
 
-  // ── Plan 步骤（助手模式 + 复杂任务）──
-  const plan = planStep(userText, thinkingEffort, ctx.tools.map((t: any) => t.function.name))
+  // ── Plan 步骤（助手模式 + 复杂任务，LLM 驱动）──
+  const plan = await planStep(userText)
   if (plan.triggered) {
     ctx.systemPrompt += plan.hint
     applyEffect(PetPersonalityMiddleware.wrap("planning"), effects)

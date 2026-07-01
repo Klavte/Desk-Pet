@@ -4,7 +4,7 @@ import "./styles/global.css";
 import { ref, nextTick, onMounted, onUnmounted } from "vue";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
-import { LogicalPosition, LogicalSize, PhysicalPosition } from "@tauri-apps/api/dpi";
+import { LogicalPosition, LogicalSize } from "@tauri-apps/api/dpi";
 import { invoke } from "@tauri-apps/api/core";
 import { register, unregister, isRegistered } from "@tauri-apps/plugin-global-shortcut";
 import TitleBar from "./components/TitleBar.vue";
@@ -399,10 +399,9 @@ async function handleShortcutToggle() {
 
       await setWindowSize(sz.w, sz.h);
       await new Promise((r) => setTimeout(r, 40));
-      // 使用物理坐标避免跨屏 DPI 不一致导致的位置偏移
       lastMovedPos.value = { x: targetX, y: targetY };
       ignoreResizeUntil = Date.now() + 3000;
-      await win.setPosition(new PhysicalPosition(Math.round(targetX * pos.scale_x), Math.round(targetY * pos.scale_y)));
+      await setWindowPos(targetX, targetY);
       await new Promise((r) => setTimeout(r, 40));
 
       el.style.transformOrigin = `${cursorX - targetX}px ${cursorY - targetY}px`;
